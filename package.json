@@ -2,14 +2,16 @@
   "name": "pull-to-refresh",
   "version": "0.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "budo src/docs.js -d ./docs --live",
+    "build:docs": "browserify src/docs.js > docs/docs.js"
   },
+ 
   "keywords": [],
   "author": "Johnny Hauser <johnnyhauser@gmail.com>",
   "license": "CC0-1.0",
   "dependencies": {
-    "hammerjs": "^2.0.8"
+    "svelte-refresh-indicator": "git+https://github.com/m59peacemaker/svelte-refresh-indicator.git#92e8d2f744975bd1371e2f9f0cccb71297e14306"
   }
 }
