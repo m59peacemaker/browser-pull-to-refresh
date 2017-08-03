@@ -6,16 +6,26 @@ const PointerUp = require('./pointer-up')
 const noop = () => {}
 const when = (predicate, whenTrueFn) => x => predicate(x) ? whenTrueFn(x) : x
 const isUsefulSelection = s => s.toString().trim().length
+const selectionVisibility = require('./selection-visibility')
+
+// TODO: dealing with text selection while dragging around is pretty awkward, make a good API for it
+
+// TODO: the drag API is not expressive/clear enough.
+  // what is "start"? Need "mightStart" (touch) and "passedThreshold"
+
+// TODO: look for performance optimizations and/or simpler code in what browsers need vs mobile
+  // right now, both get mostly the same code
 
 const Drag = (element, { start = noop, end = noop, drag = noop, threshold = 0 }) => {
   return PointerDown(element, initialE => {
     const sel = window.getSelection()
 
     if (isUsefulSelection(sel)) {
+      // if there is any non-arbitrary selection, it needs to be cleared before dragging will work
       return
     }
-
-    sel.removeAllRanges()
+    sel.removeAllRanges() // remove arbitrary selection
+    selectionVisibility.off()
 
     let started = false
 
@@ -25,7 +35,8 @@ const Drag = (element, { start = noop, end = noop, drag = noop, threshold = 0 })
 
     const startAndSetStarted = () => {
       started = true
-      return start(initialE)
+      selectionVisibility.on()
+      start(initialE)
     }
 
     const pointerMoveOff = PointerMove(

@@ -2,16 +2,20 @@
   "name": "pull-to-refresh",
   "version": "0.0.0",
   "description": "",
-  "main": "src/index.js",
+  "main": "build/pull-to-refresh.cjs.js",
+  "module": "build/pull-to-refresh.es.js",
   "scripts": {
-    "dev": "budo src/docs.js -d ./docs --live",
-    "build:docs": "browserify src/docs.js > docs/docs.js"
+    "build": "rollup -c"
   },
- 
   "keywords": [],
   "author": "Johnny Hauser <johnnyhauser@gmail.com>",
   "license": "CC0-1.0",
   "dependencies": {
-    "svelte-refresh-indicator": "git+https://github.com/m59peacemaker/svelte-refresh-indicator.git#92e8d2f744975bd1371e2f9f0cccb71297e14306"
+    "svelte-refresh-indicator": "0.0.1"
+  },
+  "devDependencies": {
+    "rollup": "^0.45.2",
+    "rollup-plugin-commonjs": "^8.1.0",
+    "rollup-plugin-node-resolve": "^3.0.0"
   }
 }

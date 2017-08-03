@@ -1,6 +1,9 @@
 const once = require('./lib/once')
 const OverflowTopScrollDrag = require('./lib/overflow-top-scroll-drag')
+const Indicator = require('./indicator')
 
+// TODO: the behavior when you pull too far could be better, see android/chrome/material
+// TODO: make `indicator` an option but include a default in this repo, but imported separate
 // TODO: determine if drag is a pull-to-refresh or text selection asap, then gate off the other
 // TODO: use svelte
 // TODO: don't touch/modify/style the indicator at all, use a wrapper
@@ -59,12 +62,13 @@ const IndicatorDisplay = ({ indicator, distanceToRefresh, extraPullDistance, thr
 
 const pullToRefresh = ({
   element,
-  indicator,
   distanceToRefresh = 40,
   extraPullDistance = 20,
   threshold = 10,
   onRefresh
 }) => {
+  const indicator = Indicator()
+
   // I hate having to do this...
   // maybe it should be required that the consumer code does this instead of hiding it in here
   element.style.position = 'relative'
