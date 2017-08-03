@@ -1,4 +1,3 @@
-(function () {
 'use strict';
 
 function createCommonjsModule(fn, module) {
@@ -1526,7 +1525,7 @@ const Indicator = () => {
 module.exports = Indicator;
 });
 
-var index$1 = createCommonjsModule(function (module) {
+var index = createCommonjsModule(function (module) {
 // TODO: make `indicator` an option but include a default in this repo, but imported separate
 // TODO: determine if drag is a pull-to-refresh or text selection asap, then gate off the other
 // TODO: use svelte
@@ -1637,22 +1636,4 @@ const pullToRefresh = ({
 module.exports = pullToRefresh;
 });
 
-// import Indicator from './indicator'
-
-const contentElem = document.createElement('div');
-document.body.appendChild(contentElem);
-const contentUrl = 'https://baconipsum.com/api/?type=all-meat&paras=15&start-with-lorem=1&format=html';
-const refreshContent = () => fetch(contentUrl)
-  .then(resp => resp.text())
-  .then(html => contentElem.innerHTML = html);
-
-refreshContent();
-
-index$1({
-  element: document.body,
-  //indicator: Indicator(),
-  onRefresh: () => new Promise(resolve => setTimeout(resolve, 900))
-    .then(refreshContent)
-});
-
-}());
+module.exports = index;
