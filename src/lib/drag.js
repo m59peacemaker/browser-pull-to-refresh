@@ -15,6 +15,18 @@ const selectionVisibility = require('./selection-visibility')
 
 // TODO: look for performance optimizations and/or simpler code in what browsers need vs mobile
   // right now, both get mostly the same code
+  //update: I **really** think there should be two different handlers for mobile and desktop
+  // onDesktopDrag, onMobileDrag sort of thing, or maybe even oniOSDrag
+  // they have such different considerations
+    // mobile
+      // rubberband scroll (iOS)
+      // swipe back (iOS)
+      // native pull-to-refresh (android)
+    // browsers:
+      // anchor drag
+      // text selection
+      // text selection scroll
+
 
 const Drag = (element, { start = noop, end = noop, drag = noop, threshold = 0 }) => {
   return PointerDown(element, initialE => {
