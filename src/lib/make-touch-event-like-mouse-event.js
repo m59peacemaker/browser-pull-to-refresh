@@ -1,9 +1,9 @@
 const objectify = require('./objectify')
 
 const makeLikeMouseEvent = e => {
-  const t = objectify(e.touches[0])
-  delete t.target
-  return Object.assign(e, t)
+  const regularE = objectify(e)
+  regularE.preventDefault = () => e.preventDefault()
+  return Object.assign(regularE, objectify(e.touches[0]))
 }
 
 module.exports = makeLikeMouseEvent
