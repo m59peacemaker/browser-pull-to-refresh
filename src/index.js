@@ -86,22 +86,32 @@ const pullToRefresh = ({
   let refreshing = false
   let pullAmount = 0
 
+  // TODO: the `if (refreshing)` stuff is way not cool. This whole API is probably bad.
+  // TODO: on desktop, if you mousedown, then scroll up to the top, then move the mouse, the ptr is at the max distance already :/ It shouldn't even count as a ptr at all
   OverflowTopScrollDrag({
     touchElement: element,
     scrollableElement: window,
     threshold,
     onStart: () => {
+      if (refreshing) { return }
       indicator.node.style.transition = null
     },
     onEnd: () => {
-      indicator.setRefreshing(true)
-      Promise.resolve(pullAmount >= refreshAt ? onRefresh() : undefined)
+      if (refreshing) { return }
+      const shouldRefresh = pullAmount >= refreshAt
+      if (shouldRefresh) {
+        refreshing = true
+        indicator.setRefreshing(true)
+      }
+      Promise.resolve(shouldRefresh ? onRefresh() : undefined)
         .then(() => {
+          refreshing = false
           indicator.setRefreshing(false)
           indicatorDisplay.placeIndicator(0, { smooth: true })
         })
     },
     onOverflow: e => {
+      if (refreshing) { return }
       e.preventDefault()
       pullAmount = e.overflow.amount
       indicator.setTilRefreshRatio(pullAmount / refreshAt)
