@@ -1,5 +1,5 @@
 import pullToRefresh from './'
-// import Indicator from './indicator'
+import Indicator from './indicator'
 
 const contentElem = document.createElement('div')
 document.body.appendChild(contentElem)
@@ -10,9 +10,12 @@ const refreshContent = () => fetch(contentUrl)
 
 refreshContent()
 
+const indicator = Indicator()
+
 pullToRefresh({
   element: document.body,
-  //indicator: Indicator(),
+  indicator,
+  distanceToRefresh: indicator.height,
   onRefresh: () => new Promise(resolve => setTimeout(resolve, 900))
     .then(refreshContent)
 })

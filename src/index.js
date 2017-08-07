@@ -1,123 +1,68 @@
-const once = require('./lib/once')
-const OverflowTopScrollDrag = require('./lib/overflow-top-scroll-drag')
-const Indicator = require('./indicator')
+import ontouchpan from './ontouchpan'
+import Spacer from './lib/spacer'
 
-// TODO: the behavior when you pull too far could be better, see android/chrome/material
-// TODO: make `indicator` an option but include a default in this repo, but imported separate
-// TODO: determine if drag is a pull-to-refresh or text selection asap, then gate off the other
-// TODO: use svelte
-// TODO: don't touch/modify/style the indicator at all, use a wrapper
-// TODO: add pull resistance modifier
+// on chrome android, see if we can catch the beforeunload or something for native ptr
+  // maybe we can watch for the gesture that triggers it and then do our own thing instead of page refresh
 
-const Spacer = height => {
-  const node = document.createElement('div')
-  node.style.height = `${height}px`
-  return node
-}
+// We should embrace the browser default behavior and design around it
 
-const IndicatorDisplay = ({ indicator, distanceToRefresh, extraPullDistance, threshold }) => {
-  const maxPullHeight = distanceToRefresh + extraPullDistance
-  indicator.node.style.display = 'inline-block'
+// NOTE: It might be ideal to not use this on chrome android where there is native pull to refresh
+  // preventDefault() has to be called to gate off the native
 
-  const node = document.createElement('div')
-  node.appendChild(indicator.node)
-  node.appendChild(Spacer(maxPullHeight))
-  node.style.pointerEvents = 'none'
-  node.style.overflow = 'hidden'
-  node.style.textAlign = 'center'
-  node.style.position = 'absolute'
-  node.style.top = 0
-  node.style.left = 0
-  node.style.right = 0
+// maybe there's a way to figure out which kind of pull logic to use
+  // maybe see how the user is gesturing and compare with how it scrolls
+    // if the gesture should have lead to a negative scrollTop but scrollTop === 0, then
+    // we're not in an environment with rubber banding
 
-  const restingY = -(indicator.height + threshold)
-  let indicatorY
-  const placeIndicator = (y, { smooth = false } = {}) => {
-    y = Math.max(y, 0)
-
-    if (indicatorY === y) { return }
-
-    indicatorY = y
-
-    if (smooth) {
-      indicator.node.style.transition = 'transform 300ms'
-      once(indicator.node, 'transitionend', () => {
-        indicator.node.style.transition = null
-      })
-    }
-
-    const maxY = indicator.height + maxPullHeight
-    const adjustedY = restingY + Math.min(y, maxY)
-    const scale = y === 0 ? 0 : 1 //Math.min(1, y / maxY)
-    indicator.node.style.transform = `translateY(${adjustedY}px) scale(${scale})`
-  }
-
-  placeIndicator(0)
-
-  return {
-    node,
-    placeIndicator
-  }
-}
-
-const pullToRefresh = ({
-  element,
-  distanceToRefresh = 40,
-  extraPullDistance = 20,
-  threshold = 10,
-  onRefresh
+export default ({
+  element = document.body,
+  indicator,
+  distanceToRefresh,
+  onRefresh = () => Promise.resolve()
 }) => {
-  const indicator = Indicator()
+  distanceToRefresh = distanceToRefresh || indicator.height || 58
 
-  // I hate having to do this...
-  // maybe it should be required that the consumer code does this instead of hiding it in here
-  element.style.position = 'relative'
+  let pulling, busy, tilRefreshRatio
 
-  const indicatorDisplay = IndicatorDisplay({
-    indicator,
-    distanceToRefresh,
-    extraPullDistance,
-    threshold
-  })
+  const spacer = Spacer({ prtElement: element })
+  element.append(indicator.node)
 
-  element.appendChild(indicatorDisplay.node)
+  const reset = () => {
+    pulling = false
+    busy = false
+    tilRefreshRatio = 0
+  }
 
-  const refreshAt = distanceToRefresh + indicator.height
-  let refreshing = false
-  let pullAmount = 0
-
-  // TODO: the `if (refreshing)` stuff is way not cool. This whole API is probably bad.
-  // TODO: on desktop, if you mousedown, then scroll up to the top, then move the mouse, the ptr is at the max distance already :/ It shouldn't even count as a ptr at all
-  OverflowTopScrollDrag({
-    touchElement: element,
-    scrollableElement: window,
-    threshold,
-    onStart: () => {
-      if (refreshing) { return }
-      indicator.node.style.transition = null
-    },
-    onEnd: () => {
-      if (refreshing) { return }
-      const shouldRefresh = pullAmount >= refreshAt
-      if (shouldRefresh) {
-        refreshing = true
-        indicator.setRefreshing(true)
+  // TODO: this doesn't filter out left/right motions
+    // it's better to have a threshold that needs to be crossed on the Y axis before X axis in order to be counted as a pull
+  return ontouchpan({
+    element,
+    onpanstart: e => {},
+    onpanmove: e => {
+      const isTopRubberScroll = element.scrollTop < 0
+      if (!isTopRubberScroll || busy) {
+        return
       }
-      Promise.resolve(shouldRefresh ? onRefresh() : undefined)
-        .then(() => {
-          refreshing = false
-          indicator.setRefreshing(false)
-          indicatorDisplay.placeIndicator(0, { smooth: true })
-        })
+
+      pulling = true
+
+      const rubberDistance = Math.abs(element.scrollTop)
+      const tilRefreshDistance = distanceToRefresh - rubberDistance
+      tilRefreshRatio = 1 - (tilRefreshDistance / distanceToRefresh)
+
+      indicator.onPullMove({ tilRefreshRatio, tilRefreshDistance })
     },
-    onOverflow: e => {
-      if (refreshing) { return }
-      e.preventDefault()
-      pullAmount = e.overflow.amount
-      indicator.setTilRefreshRatio(pullAmount / refreshAt)
-      indicatorDisplay.placeIndicator(pullAmount)
+    onpanend: () => {
+      if (!pulling) { return }
+      pulling = false
+      busy = true
+
+      ;(tilRefreshRatio >= 1
+        ? Promise.resolve(indicator.onRefreshStart({ spacer }))
+          .then(() => onRefresh())
+          .then(() => indicator.onRefreshEnd({ spacer }))
+        : Promise.resolve(indicator.onPullCancel({ spacer }))
+      ).then(reset)
     }
   })
 }
-
-module.exports = pullToRefresh
