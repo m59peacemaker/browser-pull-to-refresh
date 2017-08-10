@@ -10,15 +10,8 @@ const Plugins = () => [
 
 export default [
   {
-    entry: 'src/index.js',
-    dest: 'build/pull-to-refresh.es.js',
-    format: 'es',
-    plugins: Plugins()
-  },
-
-  {
-    entry: 'src/index.js',
-    dest: 'build/pull-to-refresh.cjs.js',
+    entry: 'src/index.cjs.js',
+    dest: 'build/index.cjs.js',
     format: 'cjs',
     plugins: Plugins()
   },

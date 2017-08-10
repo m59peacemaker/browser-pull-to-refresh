@@ -15,9 +15,7 @@ $ npm install p-t-r
 ## example
 
 ```js
-import pullToRefresh from 'p-t-r'
-import Indicator from 'p-t-r/indicator'
-import ElasticIndicator from 'p-t-r/elastic-indicator'
+import { pullToRefresh, Indicator, ElasticIndicator } from 'p-t-r'
 import disableChromePtr from 'disable-chrome-ptr'
 import bowser from 'bowser'
 

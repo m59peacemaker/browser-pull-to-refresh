@@ -1,6 +1,4 @@
-import pullToRefresh from './'
-import Indicator from './indicator'
-import ElasticIndicator from './elastic-indicator'
+import { pullToRefresh, Indicator, ElasticIndicator } from '../'
 import disableChromePtr from 'disable-chrome-ptr'
 import bowser from 'bowser'
 import pTimeout from 'p-timeout'

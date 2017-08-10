@@ -2,8 +2,8 @@
   "name": "p-t-r",
   "version": "0.0.0",
   "description": "Pull to refresh for mobile web. Desktop support probably coming soon.",
-  "main": "build/pull-to-refresh.cjs.js",
-  "module": "build/pull-to-refresh.es.js",
+  "main": "build/index.cjs.js",
+  "module": "index.js",
   "scripts": {
     "build": "rollup -c"
   },
