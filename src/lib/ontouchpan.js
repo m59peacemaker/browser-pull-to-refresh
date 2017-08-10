@@ -1,7 +1,19 @@
 import noop from 'nop'
-import addEventListener from './lib/add-event-listener'
+import addEventListener from 'addeventlistener'
 
-const ontouchpan = ({ element, onpanstart, onpanmove, onpanend, threshold = 0 }) => {
+const ontouchpan = ({
+  element,
+  onpanstart,
+  onpanmove,
+  onpanend,
+  threshold = 0,
+  passive
+}) => {
+  passive = Object.assign({
+    touchstart: true,
+    touchmove: true
+  }, passive)
+
   let firstTouch, lastMove, started
 
   const findTouch = e => Array.prototype.slice.call(e.changedTouches)
@@ -9,10 +21,10 @@ const ontouchpan = ({ element, onpanstart, onpanmove, onpanend, threshold = 0 })
     [0]
 
   const decorateEvent = (e, touch) => {
-    const distanceX = firstTouch.clientX - touch.clientX
-    const distanceY = firstTouch.clientY - touch.clientY
-    const deltaX = lastMove.distanceX - distanceX
-    const deltaY = lastMove.distanceY - distanceY
+    const distanceX = touch.clientX - firstTouch.clientX
+    const distanceY = touch.clientY - firstTouch.clientY
+    const deltaX = distanceX - lastMove.distanceX
+    const deltaY = distanceY - lastMove.distanceY
     Object.assign(e, { distanceX, distanceY, deltaX, deltaY })
   }
 
@@ -49,8 +61,8 @@ const ontouchpan = ({ element, onpanstart, onpanmove, onpanend, threshold = 0 })
   }
 
   const offs = [
-    addEventListener(element, 'touchstart', touchstart,{ passive: true }),
-    onpanmove ? addEventListener(window, 'touchmove', touchmove, { passive: true }) : nop,
+    addEventListener(element, 'touchstart', touchstart, { passive: passive.touchstart }),
+    onpanmove ? addEventListener(window, 'touchmove', touchmove, { passive: passive.touchmove }) : nop,
     onpanend ? addEventListener(window, 'touchend', touchend) : nop
   ]
 

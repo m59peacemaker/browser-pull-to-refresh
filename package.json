@@ -1,21 +1,31 @@
 {
-  "name": "pull-to-refresh",
+  "name": "p-t-r",
   "version": "0.0.0",
-  "description": "",
+  "description": "Pull to refresh for mobile web. Desktop support probably coming soon.",
   "main": "build/pull-to-refresh.cjs.js",
   "module": "build/pull-to-refresh.es.js",
   "scripts": {
     "build": "rollup -c"
   },
-  "keywords": [],
+  "keywords": [
+    "pull-to-refresh",
+    "pull",
+    "refresh",
+    "material",
+    "mobile"
+  ],
   "author": "Johnny Hauser <johnnyhauser@gmail.com>",
   "license": "CC0-1.0",
   "dependencies": {
+    "addeventlistener": "^1.0.0",
     "detect-passive-events": "^1.0.2",
     "nop": "^1.0.0",
     "svelte-refresh-indicator": "0.0.4"
   },
   "devDependencies": {
+    "bowser": "^1.7.1",
+    "disable-chrome-ptr": "^1.0.0",
+    "p-timeout": "^1.2.0",
     "rollup": "^0.45.2",
     "rollup-plugin-commonjs": "^8.1.0",
     "rollup-plugin-node-resolve": "^3.0.0"

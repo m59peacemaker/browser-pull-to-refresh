@@ -1,68 +1,129 @@
-import ontouchpan from './ontouchpan'
-import Spacer from './lib/spacer'
+import noop from 'nop'
+import ontouchpan from './lib/ontouchpan'
 
-// on chrome android, see if we can catch the beforeunload or something for native ptr
-  // maybe we can watch for the gesture that triggers it and then do our own thing instead of page refresh
-
-// We should embrace the browser default behavior and design around it
-
-// NOTE: It might be ideal to not use this on chrome android where there is native pull to refresh
-  // preventDefault() has to be called to gate off the native
-
-// maybe there's a way to figure out which kind of pull logic to use
-  // maybe see how the user is gesturing and compare with how it scrolls
-    // if the gesture should have lead to a negative scrollTop but scrollTop === 0, then
-    // we're not in an environment with rubber banding
-
-export default ({
-  element = document.body,
+// TODO: on iOS can/should the scroll event be used instead of touch?
+// TODO: maybe add `aggressive` option to determine whether window has to be scrolled to top to start
+  // when touch starts
+  // most native apps with pull to refresh are like this, but it isn't good for mobile browsers that have the url bar that hides when scrolling down
+  // aggressive: true means that the pull to refresh will start even if the page was scrolled down when the touch began, if the touchmove causes a scroll to the top and then begins overscroll
+  // in code, simply skip the pageYOffset check
+const pullToRefresh = ({
   indicator,
-  distanceToRefresh,
-  onRefresh = () => Promise.resolve()
+  onRefresh = () => Promise.resolve(),
+  element = document.body
 }) => {
-  distanceToRefresh = distanceToRefresh || indicator.height || 58
+  const {
+    distanceToRefresh = indicator.height || 60,
+    progressOffset = 0,
+    maxOverscroll = Infinity,
+    elasticOverscroll = false,
+    onPullStart = noop,
+    onPullMove = noop,
+    onPullCancel = noop,
+    onRefreshStart = noop,
+    onRefreshEnd = noop
+  } = indicator
 
-  let pulling, busy, tilRefreshRatio
-
-  const spacer = Spacer({ prtElement: element })
-  element.append(indicator.node)
+  const offsetDistanceToRefresh = distanceToRefresh - progressOffset
+  let pulling, busy, tilRefreshRatio, initialScrollTop, lastOverscroll, canBePtr
 
   const reset = () => {
+    canBePtr = false
     pulling = false
     busy = false
     tilRefreshRatio = 0
+    lastOverscroll = 0
+  }
+
+  const calcOverscrollAmount = e => {
+    return -(elasticOverscroll ? element.scrollTop : initialScrollTop - e.distanceY)
+  }
+
+  const refresh = () => {
+    onRefreshStart()
+    return onRefresh()
+      .then(() => onRefreshEnd())
   }
 
   // TODO: this doesn't filter out left/right motions
-    // it's better to have a threshold that needs to be crossed on the Y axis before X axis in order to be counted as a pull
-  return ontouchpan({
+    // I like the idea of having a threshold that needs to be crossed on the Y axis before X axis in order to be counted as a pull
+    // though this is irrelevant in elasticOverscroll situations
+  const end = ontouchpan({
     element,
-    onpanstart: e => {},
+    passive: {
+      touchstart: true,
+      touchmove: elasticOverscroll
+    },
+    onpanstart: e => {
+      if (busy || pulling) { return }
+
+      /* canBePtr also serves to gate off the case where a touch starts while busy,
+           then the busy state completes, then a move occurs
+      */
+      canBePtr = elasticOverscroll || window.pageYOffset === 0
+      lastOverscroll = 0
+      initialScrollTop = element.scrollTop
+    },
     onpanmove: e => {
-      const isTopRubberScroll = element.scrollTop < 0
-      if (!isTopRubberScroll || busy) {
+      const unrestrainedOverscrollDistance = calcOverscrollAmount(e)
+      const overscrollDistance = Math.min(maxOverscroll, unrestrainedOverscrollDistance)
+      const isPtr = !busy
+        && overscrollDistance > 0
+        && canBePtr
+
+      if (!isPtr) {
         return
       }
 
-      pulling = true
+      if (!pulling) {
+        onPullStart({ target: element })
+        pulling = true
+      }
 
-      const rubberDistance = Math.abs(element.scrollTop)
-      const tilRefreshDistance = distanceToRefresh - rubberDistance
-      tilRefreshRatio = 1 - (tilRefreshDistance / distanceToRefresh)
+      if (!elasticOverscroll) {
+        // stop pan up from scrolling the page
+        e.preventDefault()
+      }
 
-      indicator.onPullMove({ tilRefreshRatio, tilRefreshDistance })
+      const extraOverscroll = unrestrainedOverscrollDistance - overscrollDistance
+      initialScrollTop += extraOverscroll
+
+      const tilRefreshDistance = distanceToRefresh - overscrollDistance
+      tilRefreshRatio = (offsetDistanceToRefresh - tilRefreshDistance)
+        / offsetDistanceToRefresh
+
+      const overscrollDelta = overscrollDistance - lastOverscroll
+      lastOverscroll = overscrollDistance
+
+      onPullMove({
+        tilRefreshRatio,
+        tilRefreshDistance,
+        overscrollDistance,
+        overscrollDelta
+      })
     },
     onpanend: () => {
-      if (!pulling) { return }
+      // the `busy` check here is likely redundant, just being safe
+      if (!pulling || busy) { return }
       pulling = false
       busy = true
 
       ;(tilRefreshRatio >= 1
-        ? Promise.resolve(indicator.onRefreshStart({ spacer }))
-          .then(() => onRefresh())
-          .then(() => indicator.onRefreshEnd({ spacer }))
-        : Promise.resolve(indicator.onPullCancel({ spacer }))
-      ).then(reset)
+        ? refresh()
+        : Promise.resolve(onPullCancel())
+      )
+        .then(reset)
+        .catch(err => {
+          reset()
+          throw err
+        })
     }
   })
+
+  return {
+    end,
+    refresh
+  }
 }
+
+export default pullToRefresh
