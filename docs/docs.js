@@ -1,283 +1,275 @@
 (function () {
 'use strict';
 
+function nop$1(){}
+
+var index = nop$1;
+
+var commonjsGlobal = typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
+
+
+
+
+
 function createCommonjsModule(fn, module) {
 	return module = { exports: {} }, fn(module, module.exports), module.exports;
 }
 
-var on_1 = createCommonjsModule(function (module) {
-const on = (element, eventName, listener, options) => {
-  element.addEventListener(eventName, listener, options);
-  return () => element.removeEventListener(eventName, listener)
-};
+var supportsCaptureOption_1 = createCommonjsModule(function (module, exports) {
+'use strict';
 
-module.exports = on;
+Object.defineProperty(exports, "__esModule", {
+  value: true
 });
-
-var once_1 = createCommonjsModule(function (module) {
-const once = (emitter, name, listener, options) => {
-  const off = on_1(emitter, name, (...args) => {
-    off();
-    return listener(...args)
-  }, options);
-  return off
-};
-
-module.exports = once;
-});
-
-var objectify_1 = createCommonjsModule(function (module) {
-const objectify = jankyObj => {
-  const obj = {};
-  for (const key in jankyObj) {
-    obj[key] = jankyObj[key];
-  }
-  return obj
-};
-
-module.exports = objectify;
-});
-
-var makeTouchEventLikeMouseEvent = createCommonjsModule(function (module) {
-const makeLikeMouseEvent = e => {
-  const regularE = objectify_1(e);
-  regularE.preventDefault = () => e.preventDefault();
-  return Object.assign(regularE, objectify_1(e.touches[0]))
-};
-
-module.exports = makeLikeMouseEvent;
-});
-
-var pointerDown_1 = createCommonjsModule(function (module) {
-const event = 'ontouchstart' in window
-  ? {
-    name: 'touchstart',
-    normalize: e => e.touches.length > 1 ? false : makeTouchEventLikeMouseEvent(e)
-  }
-  : { name: 'mousedown', normalize: e => e };
-
-const pointerDown = (element, listener, options) => {
-  return on_1(element, event.name, e => {
-    e = event.normalize(e);
-    if (e) {
-      return listener(e)
-    }
-  }, options)
-};
-
-module.exports = pointerDown;
-});
-
-var pointerMove_1 = createCommonjsModule(function (module) {
-const event = 'ontouchmove' in window
-  ? {
-    name: 'touchmove',
-    normalize: e => e.touches.length > 1 ? false : makeTouchEventLikeMouseEvent(e)
-  }
-  : { name: 'mousemove', normalize: e => e };
-
-const pointerMove = (element, listener, options) => {
-  return on_1(element, event.name, e => {
-    e = event.normalize(e);
-    if (e) {
-      return listener(e)
-    }
-  }, options)
-};
-
-module.exports = pointerMove;
-});
-
-var pointerUp_1 = createCommonjsModule(function (module) {
-const event = 'ontouchend' in window
-  ? {
-    name: 'touchend',
-    normalize: e => e.touches.length > 1 ? false : makeTouchEventLikeMouseEvent(e)
-  }
-  : { name: 'mouseup', normalize: e => e };
-
-const pointerUp = (element, listener, options) => {
-  return on_1(element, event.name, e => {
-    e = event.normalize(e);
-    if (e) {
-      return listener(e)
-    }
-  }, options)
-};
-
-module.exports = pointerUp;
-});
-
-const style = document.createElement('style');
-style.textContent = `::selection { background: transparent; }`;
-
-const selectionVisibility = {
-  on: () => { try { document.head.removeChild(style); } catch (err) { } },
-  off: () => document.head.appendChild(style)
-};
-
-var selectionVisibility_1 = selectionVisibility;
-
-var drag = createCommonjsModule(function (module) {
-const noop = () => {};
-const when = (predicate, whenTrueFn) => x => predicate(x) ? whenTrueFn(x) : x;
-const isUsefulSelection = s => s.toString().trim().length;
-
-
-// TODO: dealing with text selection while dragging around is pretty awkward, make a good API for it
-
-// TODO: the drag API is not expressive/clear enough.
-  // what is "start"? Need "mightStart" (touch) and "passedThreshold"
-
-// TODO: look for performance optimizations and/or simpler code in what browsers need vs mobile
-  // right now, both get mostly the same code
-  //update: I **really** think there should be two different handlers for mobile and desktop
-  // onDesktopDrag, onMobileDrag sort of thing, or maybe even oniOSDrag
-  // they have such different considerations
-    // mobile
-      // rubberband scroll (iOS)
-      // swipe back (iOS)
-      // native pull-to-refresh (android)
-    // browsers:
-      // anchor drag
-      // text selection
-      // text selection scroll
-
-
-const Drag = (element, { start = noop, end = noop, drag = noop, threshold = 0 }) => {
-  return pointerDown_1(element, initialE => {
-    const sel = window.getSelection();
-
-    if (isUsefulSelection(sel)) {
-      // if there is any non-arbitrary selection, it needs to be cleared before dragging will work
-      return
-    }
-    sel.removeAllRanges(); // remove arbitrary selection
-    selectionVisibility_1.off();
-
-    let started = false;
-
-    const passedThreshold = e => started
-      || Math.abs(initialE.clientX - e.clientX) > threshold
-      || Math.abs(initialE.clientY - e.clientY) > threshold;
-
-    const startAndSetStarted = () => {
-      started = true;
-      selectionVisibility_1.on();
-      start(initialE);
-    };
-
-    const pointerMoveOff = pointerMove_1(
-      /* use the window so that movement beyond the bounds of the element where the drag originated
-        will still work */
-      window,
-      when(
-        passedThreshold,
-        e => {
-          if (!started) { startAndSetStarted(); }
-          return drag(e)
-        }
-      ),
-      // must NOT be passive to prevent default, like android chrome's native pull to refresh
-      { passive: false }
-    );
-
-    let pointerUpOff;
-    let windowBlurOff;
-    const onUp = e => {
-      pointerMoveOff();
-      pointerUpOff();
-      windowBlurOff();
-      return end(e)
-    };
-
-    pointerUpOff = pointerUp_1(window, onUp);
-    windowBlurOff = on_1(window, 'blur', onUp);
-
-    if (!threshold) {
-      return startAndSetStarted()
-    }
-    // must NOT be passive or android chrome's native pull to refresh causes problems in some cases
-      // i.e. element is body with no height
-  }, { passive: false })
-};
-
-module.exports = Drag;
-});
-
-var overflowTopScrollDrag = createCommonjsModule(function (module) {
-const noop = () => {};
-
-
-const getScrollY = node => node === window
-  ? node.scrollY
-  : node.scrollTop;
-
-// TODO: this would ideally be derived from a drag restricted to the Y axis via a threshold
-  // i.e. VerticalDrag(touchElement, etc)
-  // for now, this function has to deal with it itself
-// TODO: probably all gestures should be handled with streams / async transduce
-const threshold = 20;
-const OverflowTopScrollDrag = ({
-  touchElement,
-  scrollableElement,
-  onStart = noop,
-  onEnd = noop,
-  onOverflow
-}) => {
-  let initialE;
-  let lastMove;
-  let overflowAmount;
-  let isYDrag;
-
-  drag(touchElement, {
-    threshold,
-    start: e => {
-      initialE = e;
-      lastMove = e;
-      overflowAmount = 0;
-      isYDrag = undefined;
-      selectionVisibility_1.off();
-    },
-    end: e => {
-      selectionVisibility_1.on();
-      return onEnd(e)
-    },
-    drag: e => {
-      if (isYDrag === undefined) {
-        isYDrag = Math.abs(e.clientY - initialE.clientY) >= threshold;
-        if (isYDrag) {
-          onStart(initialE);
-        }
-      }
-
-      if (!isYDrag) {
-        selectionVisibility_1.on();
-        return
-      }
-
-      if (e.clientY === lastMove.clientY || getScrollY(scrollableElement) !== 0) {
-        return
-      }
-
-      const delta = e.clientY - lastMove.clientY;
-      overflowAmount = Math.max(0, overflowAmount + delta);
-
-      if (overflowAmount) {
-        window.getSelection().removeAllRanges();
-        e.overflow = { amount: overflowAmount };
-        onOverflow(e);
-      }
-
-      lastMove = e;
+var supportsCaptureOption = false;
+try {
+  var opts = Object.defineProperty({}, 'capture', {
+    get: function get() {
+      supportsCaptureOption = true;
     }
   });
-};
+  window.addEventListener('test', null, opts);
+} catch (e) {
+  //ignore
+}
 
-module.exports = OverflowTopScrollDrag;
+exports.default = supportsCaptureOption;
+module.exports = exports['default'];
+
 });
 
-function noop() {}
+var index$1 = createCommonjsModule(function (module, exports) {
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
+exports.addEventListener = addEventListener;
+exports.removeEventListener = removeEventListener;
+
+
+
+var _supportsCaptureOption2 = _interopRequireDefault(supportsCaptureOption_1);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function addEventListener(target, type, handler, options, wantsUntrusted) {
+  var optionsOrCapture = _supportsCaptureOption2.default || !options || (typeof options === 'undefined' ? 'undefined' : _typeof(options)) !== 'object' ? options : !!options.capture;
+  target.addEventListener(type, handler, optionsOrCapture, wantsUntrusted);
+}
+
+function removeEventListener(target, type, handler, options) {
+  var optionsOrCapture = _supportsCaptureOption2.default || !options || (typeof options === 'undefined' ? 'undefined' : _typeof(options)) !== 'object' ? options : !!options.capture;
+  target.removeEventListener(type, handler, optionsOrCapture);
+}
+
+});
+
+var index_1 = index$1.addEventListener;
+var index_2 = index$1.removeEventListener;
+
+var addEventListener = (element, name, listener, options) => {
+  index_1(element, name, listener, options);
+  return () => index_2(element, name, listener, options)
+};
+
+const ontouchpan = ({
+  element,
+  onpanstart,
+  onpanmove,
+  onpanend,
+  threshold = 0,
+  passive
+}) => {
+  passive = Object.assign({
+    touchstart: true,
+    touchmove: true
+  }, passive);
+
+  let firstTouch, lastMove, started;
+
+  const findTouch = e => Array.prototype.slice.call(e.changedTouches)
+    .filter(touch => touch.identifier === firstTouch.identifier)
+    [0];
+
+  const decorateEvent = (e, touch) => {
+    const distanceX = touch.clientX - firstTouch.clientX;
+    const distanceY = touch.clientY - firstTouch.clientY;
+    const deltaX = distanceX - lastMove.distanceX;
+    const deltaY = distanceY - lastMove.distanceY;
+    Object.assign(e, { distanceX, distanceY, deltaX, deltaY });
+  };
+
+  const passedThreshold = e => Math.abs(e.distanceY) > threshold || Math.abs(e.distanceX) > threshold;
+
+  const touchstart = e => {
+    started = false;
+    firstTouch = e.changedTouches[0];
+    lastMove = Object.assign(e, { distanceX: 0, distanceY: 0 });
+  };
+
+  const touchmove = e => {
+    const touch = findTouch(e);
+
+    if (!touch) { return }
+
+    decorateEvent(e, touch);
+    lastMove = e;
+
+    if (!started && passedThreshold(e)) {
+      onpanstart && onpanstart(e);
+      started = true;
+    }
+
+    if (started) {
+      onpanmove && onpanmove(e);
+    }
+  };
+
+  const touchend = e => {
+    if (findTouch(e)) {
+      onpanend && onpanend(e);
+    }
+  };
+
+  const offs = [
+    addEventListener(element, 'touchstart', touchstart, { passive: passive.touchstart }),
+    onpanmove ? addEventListener(window, 'touchmove', touchmove, { passive: passive.touchmove }) : nop,
+    onpanend ? addEventListener(window, 'touchend', touchend) : nop
+  ];
+
+  return () => offs.forEach(off => off())
+};
+
+// TODO: on iOS can/should the scroll event be used instead of touch?
+// TODO: maybe add `aggressive` option to determine whether window has to be scrolled to top to start
+  // when touch starts
+  // most native apps with pull to refresh are like this, but it isn't good for mobile browsers that have the url bar that hides when scrolling down
+  // aggressive: true means that the pull to refresh will start even if the page was scrolled down when the touch began, if the touchmove causes a scroll to the top and then begins overscroll
+  // in code, simply skip the pageYOffset check
+const pullToRefresh = ({
+  indicator,
+  onRefresh = () => Promise.resolve(),
+  element = document.body
+}) => {
+  const {
+    distanceToRefresh = indicator.height || 60,
+    progressOffset = 0,
+    maxOverscroll = Infinity,
+    elasticOverscroll = false,
+    onPullStart = index,
+    onPullMove = index,
+    onPullCancel = index,
+    onRefreshStart = index,
+    onRefreshEnd = index
+  } = indicator;
+
+  const offsetDistanceToRefresh = distanceToRefresh - progressOffset;
+  let pulling, busy, tilRefreshRatio, initialScrollTop, lastOverscroll, canBePtr;
+
+  const reset = () => {
+    canBePtr = false;
+    pulling = false;
+    busy = false;
+    tilRefreshRatio = 0;
+    lastOverscroll = 0;
+  };
+
+  const calcOverscrollAmount = e => {
+    return -(elasticOverscroll ? element.scrollTop : initialScrollTop - e.distanceY)
+  };
+
+  const refresh = () => {
+    onRefreshStart();
+    return onRefresh()
+      .then(() => onRefreshEnd())
+  };
+
+  // TODO: this doesn't filter out left/right motions
+    // I like the idea of having a threshold that needs to be crossed on the Y axis before X axis in order to be counted as a pull
+    // though this is irrelevant in elasticOverscroll situations
+  const end = ontouchpan({
+    element,
+    passive: {
+      touchstart: true,
+      touchmove: elasticOverscroll
+    },
+    onpanstart: e => {
+      if (busy || pulling) { return }
+
+      /* canBePtr also serves to gate off the case where a touch starts while busy,
+           then the busy state completes, then a move occurs
+      */
+      canBePtr = elasticOverscroll || window.pageYOffset === 0;
+      lastOverscroll = 0;
+      initialScrollTop = element.scrollTop;
+    },
+    onpanmove: e => {
+      const unrestrainedOverscrollDistance = calcOverscrollAmount(e);
+      const overscrollDistance = Math.min(maxOverscroll, unrestrainedOverscrollDistance);
+      const isPtr = !busy
+        && overscrollDistance > 0
+        && canBePtr;
+
+      if (!isPtr) {
+        return
+      }
+
+      if (!pulling) {
+        onPullStart({ target: element });
+        pulling = true;
+      }
+
+      if (!elasticOverscroll) {
+        // stop pan up from scrolling the page
+        e.preventDefault();
+      }
+
+      const extraOverscroll = unrestrainedOverscrollDistance - overscrollDistance;
+      initialScrollTop += extraOverscroll;
+
+      const tilRefreshDistance = distanceToRefresh - overscrollDistance;
+      tilRefreshRatio = (offsetDistanceToRefresh - tilRefreshDistance)
+        / offsetDistanceToRefresh;
+
+      const overscrollDelta = overscrollDistance - lastOverscroll;
+      lastOverscroll = overscrollDistance;
+
+      onPullMove({
+        tilRefreshRatio,
+        tilRefreshDistance,
+        overscrollDistance,
+        overscrollDelta
+      });
+    },
+    onpanend: () => {
+      // the `busy` check here is likely redundant, just being safe
+      if (!pulling || busy) { return }
+      pulling = false;
+      busy = true
+
+      ;(tilRefreshRatio >= 1
+        ? refresh()
+        : Promise.resolve(onPullCancel())
+      )
+        .then(reset)
+        .catch(err => {
+          reset();
+          throw err
+        });
+    }
+  });
+
+  return {
+    end,
+    refresh
+  }
+};
+
+function noop$1() {}
 
 function assign(target) {
 	var k,
@@ -378,7 +370,7 @@ function observe(key, callback, options) {
 	};
 }
 
-function on$1(eventName, handler) {
+function on(eventName, handler) {
 	if (eventName === 'teardown') return this.on('destroy', handler);
 
 	var handlers = this._handlers[eventName] || (this._handlers[eventName] = []);
@@ -410,7 +402,7 @@ var proto = {
 	get: get,
 	fire: fire,
 	observe: observe,
-	on: on$1,
+	on: on,
 	set: set
 };
 
@@ -432,11 +424,12 @@ return {
 
   computed: {
     styles: (color, sizeRatio, size) => {
+      size = size * 1.692;
       sizeRatio = Math.min(1, sizeRatio);
       const maxBorderWidth = size * 0.1364;
       const minBorderWidth = size * 0.05;
       const borderWidthRange = maxBorderWidth - minBorderWidth;
-      const borderWidth = minBorderWidth + (sizeRatio * borderWidthRange);
+      const borderWidth = Math.round( minBorderWidth + (sizeRatio * borderWidthRange) );
 
       return {
         borderWidth,
@@ -450,8 +443,8 @@ return {
 
 function add_css$3 () {
 	var style = createElement( 'style' );
-	style.id = 'svelte-3591478532-style';
-	style.textContent = "\n\n[svelte-3591478532].arrow-head, [svelte-3591478532] .arrow-head {\n  transform: rotate(-25deg);\n  position: absolute;\n  display: flex;\n  align-items: center;\n  justify-content: flex-end;\n  right: 13%;\n  bottom: -50%;\n  height: 100%;\n  width: 100%;\n}\n\nspan[svelte-3591478532], [svelte-3591478532] span {\n  display: block;\n  width: 0;\n  height: 0;\n  border-style: solid;\n  border-width: 6px;\n}\n\n";
+	style.id = 'svelte-4267355228-style';
+	style.textContent = "\n\n[svelte-4267355228].arrow-head, [svelte-4267355228] .arrow-head {\n  transform: rotate(-25deg);\n  position: absolute;\n  display: flex;\n  align-items: center;\n  justify-content: flex-end;\n  right: 13%;\n  bottom: -50%;\n  height: 100%;\n  width: 100%;\n}\n\nspan[svelte-4267355228], [svelte-4267355228] span {\n  display: block;\n  width: 0;\n  height: 0;\n  border-style: solid;\n  border-width: 6px;\n}\n\n";
 	appendNode( style, document.head );
 }
 
@@ -466,7 +459,7 @@ function create_main_fragment$3 ( state, component ) {
 		},
 
 		hydrate: function ( nodes ) {
-			setAttribute( div, 'svelte-3591478532', '' );
+			setAttribute( div, 'svelte-4267355228', '' );
 			div.className = "arrow-head";
 			span.style.cssText = span_style_value = "\n      border-color: " + ( state.styles.borderColor ) + ";\n      border-width: " + ( state.styles.borderWidth ) + "px;\n    ";
 		},
@@ -486,7 +479,7 @@ function create_main_fragment$3 ( state, component ) {
 			detachNode( div );
 		},
 
-		destroy: noop
+		destroy: noop$1
 	};
 }
 
@@ -506,7 +499,7 @@ function ArrowHead ( options ) {
 	this._yield = options._yield;
 
 	this._torndown = false;
-	if ( !document.getElementById( 'svelte-3591478532-style' ) ) add_css$3();
+	if ( !document.getElementById( 'svelte-4267355228-style' ) ) add_css$3();
 
 	this._fragment = create_main_fragment$3( this._state, this );
 
@@ -581,8 +574,8 @@ return {
 
 function add_css$2 () {
 	var style = createElement( 'style' );
-	style.id = 'svelte-1381413138-style';
-	style.textContent = "\n\n[svelte-1381413138].half-circle, [svelte-1381413138] .half-circle {\n  animation-duration: 1.3125s;\n  animation-timing-function: cubic-bezier(0.35, 0, 0.25, 1);\n  animation-iteration-count: infinite; }\n\n[svelte-1381413138].left, [svelte-1381413138] .left,\n[svelte-1381413138].right, [svelte-1381413138] .right {\n  position: absolute;\n  top: 0;\n  height: 100%;\n  width: 50%;\n  overflow: hidden;\n}\n\n[svelte-1381413138].left, [svelte-1381413138] .left {\n  /* The overflow: hidden separating the left and right caused a 1px distortion between them\n     in some browsers. This smooths it out by letting the left overlap the right by 1px\n     The left half circle width has to be reduced by 2px to compensate this 1px overlap\n   */\n  width: calc(50% + 1px);\n}\n\n[svelte-1381413138].right, [svelte-1381413138] .right {\n  right: 0\n}\n\n[svelte-1381413138].half-circle, [svelte-1381413138] .half-circle {\n  height: 100%;\n  width: 200%;\n  position: absolute;\n  top: 0;\n  box-sizing: border-box;\n  border-width: 3px;\n  border-style: solid;\n  border-color: #000 #000 transparent #000;\n  border-radius: 50%;\n}\n\n[svelte-1381413138].left .half-circle, [svelte-1381413138] .left .half-circle {\n  /* compensate the 1px overlap so that the circle remains the correct size and shape\n     see comment on .left\n   */\n  width: calc(200% - 2px);\n\n  border-right-color: transparent;\n}\n\n[svelte-1381413138].right .half-circle, [svelte-1381413138] .right .half-circle {\n  right: 0;\n  border-left-color: transparent;\n}\n\n";
+	style.id = 'svelte-1807189378-style';
+	style.textContent = "\n\n[svelte-1807189378].left, [svelte-1807189378] .left,\n[svelte-1807189378].right, [svelte-1807189378] .right {\n  position: absolute;\n  top: 0;\n  height: 100%;\n  width: 50%;\n  overflow: hidden;\n}\n\n[svelte-1807189378].right, [svelte-1807189378] .right {\n  right: 0\n}\n\n[svelte-1807189378].half-circle, [svelte-1807189378] .half-circle {\n  height: 100%;\n  width: 200%;\n  position: absolute;\n  top: 0;\n  box-sizing: border-box;\n  border-width: 3px;\n  border-style: solid;\n  border-color: #000 #000 transparent #000;\n  border-radius: 50%;\n}\n\n[svelte-1807189378].left .half-circle, [svelte-1807189378] .left .half-circle {\n  border-right-color: transparent;\n}\n\n[svelte-1807189378].right .half-circle, [svelte-1807189378] .right .half-circle {\n  right: 0;\n  border-left-color: transparent;\n}\n\n";
 	appendNode( style, document.head );
 }
 
@@ -597,7 +590,7 @@ function create_main_fragment$2 ( state, component ) {
 		},
 
 		hydrate: function ( nodes ) {
-			setAttribute( div, 'svelte-1381413138', '' );
+			setAttribute( div, 'svelte-1807189378', '' );
 			div.className = div_class_value = "side " + ( state.which );
 			div_1.className = "half-circle";
 			div_1.style.cssText = div_1_style_value = "\n      transform: rotate(" + ( state.rotateDeg ) + "deg);\n      border-width: " + ( state.borderWidth ) + "px;\n      border-color: " + ( state.borderColor ) + ";\n    ";
@@ -622,7 +615,7 @@ function create_main_fragment$2 ( state, component ) {
 			detachNode( div );
 		},
 
-		destroy: noop
+		destroy: noop$1
 	};
 }
 
@@ -642,7 +635,7 @@ function ArrowSide ( options ) {
 	this._yield = options._yield;
 
 	this._torndown = false;
-	if ( !document.getElementById( 'svelte-1381413138-style' ) ) add_css$2();
+	if ( !document.getElementById( 'svelte-1807189378-style' ) ) add_css$2();
 
 	this._fragment = create_main_fragment$2( this._state, this );
 
@@ -698,15 +691,15 @@ return {
 
   computed: {
     rotate: progressRatio => COMPLETE_ROTATION * progressRatio,
-    borderWidth: size => size * 0.0682
+    borderWidth: size => Math.round(size * 0.1154)
   }
 }
 }());
 
 function add_css$1 () {
 	var style = createElement( 'style' );
-	style.id = 'svelte-1901924645-style';
-	style.textContent = "\n\n[svelte-1901924645].arrow, [svelte-1901924645] .arrow {\n  position: relative;\n  height: 100%;\n}\n\n[svelte-1901924645].arrow-head-rotate, [svelte-1901924645] .arrow-head-rotate {\n  height: 100%;\n  width: 100%;\n}\n\n";
+	style.id = 'svelte-647709901-style';
+	style.textContent = "\n\n[svelte-647709901].arrow, [svelte-647709901] .arrow {\n  position: relative;\n  height: 100%;\n}\n\n[svelte-647709901].arrow-head-rotate, [svelte-647709901] .arrow-head-rotate {\n  height: 100%;\n  width: 100%;\n}\n\n";
 	appendNode( style, document.head );
 }
 
@@ -747,7 +740,7 @@ function create_main_fragment$1 ( state, component ) {
 		},
 
 		hydrate: function ( nodes ) {
-			setAttribute( div, 'svelte-1901924645', '' );
+			setAttribute( div, 'svelte-647709901', '' );
 			div.className = "arrow";
 			div.style.cssText = div_style_value = "transform: rotate(90deg); opacity: " + ( state.progressRatio ) + ";";
 		},
@@ -877,7 +870,7 @@ function Arrow ( options ) {
 	this._yield = options._yield;
 
 	this._torndown = false;
-	if ( !document.getElementById( 'svelte-1901924645-style' ) ) add_css$1();
+	if ( !document.getElementById( 'svelte-647709901-style' ) ) add_css$1();
 
 	if ( !options._root ) {
 		this._oncreate = [];
@@ -1010,7 +1003,7 @@ function create_main_fragment$5 ( state, component ) {
 			detachNode( div );
 		},
 
-		destroy: noop
+		destroy: noop$1
 	};
 }
 
@@ -1089,7 +1082,7 @@ return {
   },
 
   computed: {
-    borderWidth: size => size * 0.0682,
+    borderWidth: size => Math.round(size * 0.1154),
     animationOffset: initialProgress => {
       if (!initialProgress) { return 0 }
       return -(ANIMATION_DURATION * 1.1)
@@ -1100,8 +1093,8 @@ return {
 
 function add_css$4 () {
 	var style = createElement( 'style' );
-	style.id = 'svelte-2520639675-style';
-	style.textContent = "\n\n@keyframes svelte-2520639675-outer-rotate {\n  100% { transform: rotate(360deg); }\n}\n\n@keyframes svelte-2520639675-inner-rotate {\n  12.5% { transform: rotate(135deg); }\n  25%   { transform: rotate(270deg); }\n  37.5% { transform: rotate(405deg); }\n  50%   { transform: rotate(540deg); }\n  62.5% { transform: rotate(675deg); }\n  75%   { transform: rotate(810deg); }\n  87.5% { transform: rotate(945deg); }\n  100%  { transform: rotate(1080deg); }\n}\n\n[svelte-2520639675].spinner.animated, [svelte-2520639675] .spinner.animated {\n  animation: svelte-2520639675-outer-rotate 2.91667s linear infinite;\n}\n\n[svelte-2520639675].inner.animated, [svelte-2520639675] .inner.animated {\n  animation: svelte-2520639675-inner-rotate 5.25s cubic-bezier(0.35, 0, 0.25, 1) infinite;\n}\n\n[svelte-2520639675].spinner, [svelte-2520639675] .spinner {\n  width: 100%;\n  height: 100%;\n  position: relative;\n}\n\n[svelte-2520639675].inner, [svelte-2520639675] .inner {\n  height: 100%;\n}\n\n";
+	style.id = 'svelte-2754252755-style';
+	style.textContent = "\n\n@keyframes svelte-2754252755-outer-rotate {\n  100% { transform: rotate(360deg); }\n}\n\n@keyframes svelte-2754252755-inner-rotate {\n  12.5% { transform: rotate(135deg); }\n  25%   { transform: rotate(270deg); }\n  37.5% { transform: rotate(405deg); }\n  50%   { transform: rotate(540deg); }\n  62.5% { transform: rotate(675deg); }\n  75%   { transform: rotate(810deg); }\n  87.5% { transform: rotate(945deg); }\n  100%  { transform: rotate(1080deg); }\n}\n\n[svelte-2754252755].spinner.animated, [svelte-2754252755] .spinner.animated {\n  animation: svelte-2754252755-outer-rotate 2.91667s linear infinite;\n}\n\n[svelte-2754252755].inner.animated, [svelte-2754252755] .inner.animated {\n  animation: svelte-2754252755-inner-rotate 5.25s cubic-bezier(0.35, 0, 0.25, 1) infinite;\n}\n\n[svelte-2754252755].spinner, [svelte-2754252755] .spinner {\n  width: 100%;\n  height: 100%;\n  position: relative;\n}\n\n[svelte-2754252755].inner, [svelte-2754252755] .inner {\n  height: 100%;\n}\n\n";
 	appendNode( style, document.head );
 }
 
@@ -1139,7 +1132,7 @@ function create_main_fragment$4 ( state, component ) {
 		},
 
 		hydrate: function ( nodes ) {
-			setAttribute( div, 'svelte-2520639675', '' );
+			setAttribute( div, 'svelte-2754252755', '' );
 			div.className = "spinner animated";
 			div.style.cssText = div_style_value = "animation-delay: " + ( state.animationOffset ) + "s;";
 			div_1.className = "inner animated";
@@ -1207,7 +1200,7 @@ function Spinner ( options ) {
 	this._yield = options._yield;
 
 	this._torndown = false;
-	if ( !document.getElementById( 'svelte-2520639675-style' ) ) add_css$4();
+	if ( !document.getElementById( 'svelte-2754252755-style' ) ) add_css$4();
 
 	if ( !options._root ) {
 		this._oncreate = [];
@@ -1258,8 +1251,12 @@ function recompute ( state, newState, oldState, isInitial ) {
 		state.spinning = newState.spinning = template.computed.spinning( state.progressRatio );
 	}
 
-	if ( isInitial || ( 'size' in newState && differs( state.size, oldState.size ) ) ) {
-		state.padding = newState.padding = template.computed.padding( state.size );
+	if ( isInitial || ( 'emphasized' in newState && differs( state.emphasized, oldState.emphasized ) ) || ( 'size' in newState && differs( state.size, oldState.size ) ) ) {
+		state.padding = newState.padding = template.computed.padding( state.emphasized, state.size );
+	}
+
+	if ( isInitial || ( 'size' in newState && differs( state.size, oldState.size ) ) || ( 'padding' in newState && differs( state.padding, oldState.padding ) ) || ( 'emphasized' in newState && differs( state.emphasized, oldState.emphasized ) ) ) {
+		state.spinnerSize = newState.spinnerSize = template.computed.spinnerSize( state.size, state.padding, state.emphasized );
 	}
 
 	if ( isInitial || ( 'spinning' in newState && differs( state.spinning, oldState.spinning ) ) || ( 'lastProgressRatio' in newState && differs( state.lastProgressRatio, oldState.lastProgressRatio ) ) ) {
@@ -1271,7 +1268,8 @@ var template = (function () {
 return {
   data () {
     return {
-      size: 44,
+      size: 38,
+      emphasized: false,
       progressRatio: undefined,
       lastProgressRatio: 0
     }
@@ -1279,7 +1277,8 @@ return {
 
   computed: {
     spinning: progressRatio => progressRatio === undefined,
-    padding: size => Math.floor(size * 0.2046),
+    padding: (emphasized, size) => Math.round( (size * 0.2046) / (emphasized ? 1 : 1.7) ),
+    spinnerSize: (size, padding, emphasized) => size - (padding * 2),
     arrowSyncRotate: (spinning, lastProgressRatio) => {
       const ratio = !spinning ? 0 : (lastProgressRatio || 0);
       return ratio * 270
@@ -1294,13 +1293,13 @@ return {
 
 function add_css () {
 	var style = createElement( 'style' );
-	style.id = 'svelte-944197787-style';
-	style.textContent = "\n\n[svelte-944197787].refresh-indicator, [svelte-944197787] .refresh-indicator {\n  box-sizing: border-box;\n  width: 44px;\n  height: 44px;\n  padding: 9px;\n  border-radius: 50%;\n  background-color: #fff;\n  box-shadow: 0 2px 10px 0 rgba(0, 0, 0, 0.3);\n  overflow: hidden;\n}\n\n[svelte-944197787].arrow-sync-container, [svelte-944197787] .arrow-sync-container {\n  height: 100%;\n}\n\n";
+	style.id = 'svelte-3104553244-style';
+	style.textContent = "\n\n[svelte-3104553244].refresh-indicator, [svelte-3104553244] .refresh-indicator {\n  width: 44px;\n  height: 44px;\n  padding: 4px;\n  box-sizing: border-box;\n  overflow: hidden;\n}\n\n[svelte-3104553244].emphasized, [svelte-3104553244] .emphasized {\n  padding: 9px;\n  border-radius: 50%;\n  background-color: #fff;\n  box-shadow: 0 2px 10px 0 rgba(0, 0, 0, 0.3);\n}\n\n[svelte-3104553244].arrow-sync-container, [svelte-3104553244] .arrow-sync-container {\n  height: 100%;\n}\n\n";
 	appendNode( style, document.head );
 }
 
 function create_main_fragment ( state, component ) {
-	var div, div_style_value;
+	var div, div_class_value, div_style_value;
 
 	function get_block ( state ) {
 		if ( state.spinning ) return create_if_block;
@@ -1318,8 +1317,8 @@ function create_main_fragment ( state, component ) {
 		},
 
 		hydrate: function ( nodes ) {
-			setAttribute( div, 'svelte-944197787', '' );
-			div.className = "refresh-indicator";
+			setAttribute( div, 'svelte-3104553244', '' );
+			div.className = div_class_value = "refresh-indicator " + ( state.emphasized ? 'emphasized' : '' );
 			div.style.cssText = div_style_value = "height: " + ( state.size ) + "px; width: " + ( state.size ) + "px; padding: " + ( state.padding ) + "px;";
 		},
 
@@ -1329,6 +1328,10 @@ function create_main_fragment ( state, component ) {
 		},
 
 		update: function ( changed, state ) {
+			if ( div_class_value !== ( div_class_value = "refresh-indicator " + ( state.emphasized ? 'emphasized' : '' ) ) ) {
+				div.className = div_class_value;
+			}
+
 			if ( div_style_value !== ( div_style_value = "height: " + ( state.size ) + "px; width: " + ( state.size ) + "px; padding: " + ( state.padding ) + "px;" ) ) {
 				div.style.cssText = div_style_value;
 			}
@@ -1361,7 +1364,7 @@ function create_if_block ( state, component ) {
 	var spinner = new Spinner({
 		_root: component._root,
 		data: {
-			size: state.size,
+			size: state.spinnerSize,
 			initialProgress: state.lastProgressRatio
 		}
 	});
@@ -1390,7 +1393,7 @@ function create_if_block ( state, component ) {
 
 			var spinner_changes = {};
 
-			if ( 'size' in changed ) spinner_changes.size = state.size;
+			if ( 'spinnerSize' in changed ) spinner_changes.size = state.spinnerSize;
 			if ( 'lastProgressRatio' in changed ) spinner_changes.initialProgress = state.lastProgressRatio;
 
 			if ( Object.keys( spinner_changes ).length ) spinner.set( spinner_changes );
@@ -1411,7 +1414,7 @@ function create_if_block_1 ( state, component ) {
 	var arrow = new Arrow({
 		_root: component._root,
 		data: {
-			size: state.size,
+			size: state.spinnerSize,
 			progressRatio: state.progressRatio
 		}
 	});
@@ -1428,7 +1431,7 @@ function create_if_block_1 ( state, component ) {
 		update: function ( changed, state ) {
 			var arrow_changes = {};
 
-			if ( 'size' in changed ) arrow_changes.size = state.size;
+			if ( 'spinnerSize' in changed ) arrow_changes.size = state.spinnerSize;
 			if ( 'progressRatio' in changed ) arrow_changes.progressRatio = state.progressRatio;
 
 			if ( Object.keys( arrow_changes ).length ) arrow.set( arrow_changes );
@@ -1444,7 +1447,7 @@ function create_if_block_1 ( state, component ) {
 	};
 }
 
-function Indicator ( options ) {
+function Indicator$2 ( options ) {
 	options = options || {};
 	this._state = assign( template.data(), options.data );
 	recompute( this._state, this._state, {}, true );
@@ -1460,7 +1463,7 @@ function Indicator ( options ) {
 	this._yield = options._yield;
 
 	this._torndown = false;
-	if ( !document.getElementById( 'svelte-944197787-style' ) ) add_css();
+	if ( !document.getElementById( 'svelte-3104553244-style' ) ) add_css();
 
 	var oncreate = template.oncreate.bind( this );
 
@@ -1488,9 +1491,9 @@ function Indicator ( options ) {
 	}
 }
 
-assign( Indicator.prototype, proto );
+assign( Indicator$2.prototype, proto );
 
-Indicator.prototype._set = function _set ( newState ) {
+Indicator$2.prototype._set = function _set ( newState ) {
 	var oldState = this._state;
 	this._state = assign( {}, oldState, newState );
 	recompute( this._state, newState, oldState, false );
@@ -1499,7 +1502,7 @@ Indicator.prototype._set = function _set ( newState ) {
 	dispatchObservers( this, this._observers.post, newState, oldState );
 };
 
-Indicator.prototype.teardown = Indicator.prototype.destroy = function destroy ( detach ) {
+Indicator$2.prototype.teardown = Indicator$2.prototype.destroy = function destroy ( detach ) {
 	this.fire( 'destroy' );
 
 	if ( detach !== false ) this._fragment.unmount();
@@ -1510,172 +1513,967 @@ Indicator.prototype.teardown = Indicator.prototype.destroy = function destroy ( 
 	this._torndown = true;
 };
 
-
-
-
-var Indicator_es = Object.freeze({
-	default: Indicator
+const transition = (fn, ms, node) => new Promise(resolve => {
+  node.style.transition = `all ${ms}ms`;
+  const off = addEventListener(node, 'transitionend', () => {
+    node.style.transition = '';
+    off();
+    resolve();
+  });
+  fn(node);
 });
 
-var RefreshIndicator = ( Indicator_es && Indicator ) || Indicator_es;
+const clamp = (lower, higher, n) => Math.min(higher, Math.max(lower, n));
 
-var indicator = createCommonjsModule(function (module) {
-const Indicator = () => {
+const refreshIndicatorHeight = 38;
+const totalHeight = 46;
+
+/* this sits at the top of the target element and hides the overflowing indicator
+  it lets the indicator sit above it and be hidden and then come down into view
+  sort of like being above the page, but for elements
+*/
+const VisibleArea = () => {
   const node = document.createElement('div');
-  const indicator = new RefreshIndicator({ target: node });
-
-  const setTilRefreshRatio = ratio => indicator.set({ progressRatio: ratio });
-  const setRefreshing = isRefreshing => isRefreshing && indicator.set({ progressRatio: undefined });
-
-  return {
-    node,
-    height: 50,
-    setTilRefreshRatio,
-    setRefreshing
-  }
-};
-
-module.exports = Indicator;
-});
-
-var index$1 = createCommonjsModule(function (module) {
-// TODO: the behavior when you pull too far could be better, see android/chrome/material
-// TODO: make `indicator` an option but include a default in this repo, but imported separate
-// TODO: determine if drag is a pull-to-refresh or text selection asap, then gate off the other
-// TODO: use svelte
-// TODO: don't touch/modify/style the indicator at all, use a wrapper
-// TODO: add pull resistance modifier
-
-const Spacer = height => {
-  const node = document.createElement('div');
-  node.style.height = `${height}px`;
-  return node
-};
-
-const IndicatorDisplay = ({ indicator: indicator$$1, distanceToRefresh, extraPullDistance, threshold }) => {
-  const maxPullHeight = distanceToRefresh + extraPullDistance;
-  indicator$$1.node.style.display = 'inline-block';
-
-  const node = document.createElement('div');
-  node.appendChild(indicator$$1.node);
-  node.appendChild(Spacer(maxPullHeight));
   node.style.pointerEvents = 'none';
   node.style.overflow = 'hidden';
-  node.style.textAlign = 'center';
   node.style.position = 'absolute';
   node.style.top = 0;
   node.style.left = 0;
   node.style.right = 0;
+  node.style.bottom = 0;
 
-  const restingY = -(indicator$$1.height + threshold);
-  let indicatorY;
-  const placeIndicator = (y, { smooth = false } = {}) => {
-    y = Math.max(y, 0);
+  const setActive = beActive => node.style.height = beActive ? 'auto' : 0;
+  setActive(false);
 
-    if (indicatorY === y) { return }
+  return { node, setActive }
+};
 
-    indicatorY = y;
+const Container = ({ indicator }) => {
+  const node = document.createElement('div');
 
-    if (smooth) {
-      indicator$$1.node.style.transition = 'transform 300ms';
-      once_1(indicator$$1.node, 'transitionend', () => {
-        indicator$$1.node.style.transition = null;
-      });
+ // webkit bugs without this. The element will often just not render.
+  node.style.height = `${refreshIndicatorHeight}px`;
+  node.style.width = '100%';
+  node.style.pointerEvents = 'none';
+  node.style.display = 'flex';
+  node.style.justifyContent = 'center';
+  node.style.position = 'absolute';
+  node.style.paddingBottom = '8px';
+
+  const setY = y => node.style.transform = `translateY(${y}px)`;
+
+  return { node, setY }
+};
+
+const Indicator = ({ target }) => {
+  target.style.position = 'relative'; // NOTE: ugly side-effect :/
+
+  const indicatorNode = document.createElement('div');
+  indicatorNode.style.transform = 'scale(1)';
+  indicatorNode.style.opacity = 1;
+
+  const indicator = new Indicator$2({
+    target: indicatorNode,
+    data: {
+      size: refreshIndicatorHeight,
+      emphasized: true
     }
+  });
 
-    const maxY = indicator$$1.height + maxPullHeight;
-    const adjustedY = restingY + Math.min(y, maxY);
-    const scale = y === 0 ? 0 : 1; //Math.min(1, y / maxY)
-    indicator$$1.node.style.transform = `translateY(${adjustedY}px) scale(${scale})`;
+  const visibleArea = VisibleArea();
+  const container = Container({ indicator });
+
+  let y = 0;
+  const setY = newY => {
+    y = newY;
+    container.setY(newY - totalHeight);
+  };
+  setY(0);
+
+  const onPullStart = () => visibleArea.setActive(true);
+
+  const maxY = 300;
+  const onPullMove = ({
+    tilRefreshRatio,
+    tilRefreshDistance,
+    overscrollDistance,
+    overscrollDelta
+  }) => {
+    const resistance = clamp(0.1, 0.75, (maxY - overscrollDistance) / maxY);
+    setY(y + overscrollDelta * resistance);
+
+    // max rotation
+    const ratio = Math.min(1.8, tilRefreshRatio);
+    indicator.set({ progressRatio: ratio });
   };
 
-  placeIndicator(0);
+  const onPullCancel = () => {
+    return transition(node => node.style.transform = 'scale(0)', 250, indicatorNode)
+      .then(() => {
+        setY(0);
+        indicatorNode.style.transform = 'scale(1)';
+        visibleArea.setActive(false);
+      })
+  };
+
+  const onRefreshStart = () => {
+    indicator.set({ progressRatio: undefined });
+    transition(() => setY(totalHeight + 15), 200, container.node);
+  };
+
+  const onRefreshEnd = onPullCancel;
+
+  visibleArea.node.appendChild(container.node);
+  container.node.appendChild(indicatorNode);
+  target.append(visibleArea.node);
 
   return {
-    node,
-    placeIndicator
+    node: visibleArea.node,
+    height: totalHeight,
+    distanceToRefresh: totalHeight + 50,
+    maxOverscroll: 300,
+    progressOffset: 35,
+    elasticOverscroll: false,
+    onPullStart,
+    onPullMove,
+    onPullCancel,
+    onRefreshStart,
+    onRefreshEnd
   }
 };
 
-const pullToRefresh = ({
-  element,
-  distanceToRefresh = 40,
-  extraPullDistance = 20,
-  threshold = 10,
-  onRefresh
-}) => {
-  const indicator$$1 = indicator();
+const Spacer = ({ ptrElement }) => {
+  const node = document.createElement('div');
+  node.style.visibility = 'hidden';
+  node.style.pointerEvents = 'none';
 
-  // I hate having to do this...
-  // maybe it should be required that the consumer code does this instead of hiding it in here
-  element.style.position = 'relative';
+  let currentHeight = 0;
 
-  const indicatorDisplay = IndicatorDisplay({
-    indicator: indicator$$1,
-    distanceToRefresh,
-    extraPullDistance,
-    threshold
-  });
+  const beFirstChild = () => ptrElement.insertBefore(node, ptrElement.firstElementChild);
 
-  element.appendChild(indicatorDisplay.node);
-
-  const refreshAt = distanceToRefresh + indicator$$1.height;
-  let refreshing = false;
-  let pullAmount = 0;
-
-  // TODO: the `if (refreshing)` stuff is way not cool. This whole API is probably bad.
-  // TODO: on desktop, if you mousedown, then scroll up to the top, then move the mouse, the ptr is at the max distance already :/ It shouldn't even count as a ptr at all
-  overflowTopScrollDrag({
-    touchElement: element,
-    scrollableElement: window,
-    threshold,
-    onStart: () => {
-      if (refreshing) { return }
-      indicator$$1.node.style.transition = null;
-    },
-    onEnd: () => {
-      if (refreshing) { return }
-      const shouldRefresh = pullAmount >= refreshAt;
-      if (shouldRefresh) {
-        refreshing = true;
-        indicator$$1.setRefreshing(true);
-      }
-      Promise.resolve(shouldRefresh ? onRefresh() : undefined)
-        .then(() => {
-          refreshing = false;
-          indicator$$1.setRefreshing(false);
-          indicatorDisplay.placeIndicator(0, { smooth: true });
-        });
-    },
-    onOverflow: e => {
-      if (refreshing) { return }
-      e.preventDefault();
-      pullAmount = e.overflow.amount;
-      indicator$$1.setTilRefreshRatio(pullAmount / refreshAt);
-      indicatorDisplay.placeIndicator(pullAmount);
+  const justSetHeight = height => node.style.height = `${height}px`;
+  const setHeight = height => {
+    beFirstChild();
+    justSetHeight(height);
+    if (height > currentHeight) {
+      ptrElement.scrollTop = ptrElement.scrollTop - (height - currentHeight);
     }
-  });
+    currentHeight = height;
+  };
+
+  justSetHeight(currentHeight);
+
+  return { setHeight, node }
 };
 
-module.exports = pullToRefresh;
+const refreshIndicatorHeight$1 = 38;
+const totalHeight$1 = 48;
+
+const Container$1 = ({ indicator }) => {
+  const node = document.createElement('div');
+  node.style.height = '100%'; // webkit bugs without this. The element will often just not render.
+  node.style.pointerEvents = 'none';
+  node.style.display = 'flex';
+  node.style.justifyContent = 'center';
+  node.style.position = 'fixed';
+  node.style.top = 0;
+  node.style.left = 0;
+  node.style.right = 0;
+
+  const setY = y => node.style.transform = `translateY(${y}px)`;
+
+  return { node, setY }
+};
+
+const Indicator$3 = ({ target }) => {
+  const spacer = Spacer({ ptrElement: target });
+
+  const indicatorNode = document.createElement('div');
+  indicatorNode.style.paddingTop = `10px`;
+
+  const indicator = new Indicator$2({
+    target: indicatorNode,
+    data: {
+      size: refreshIndicatorHeight$1,
+      emphasized: false
+    }
+  });
+
+  const container = Container$1({ indicator });
+
+  const setY = y => container.setY(Math.min(0, y));
+  setY(-totalHeight$1);
+
+  const onPullMove = ({ tilRefreshRatio, tilRefreshDistance }) => {
+    setY(-tilRefreshDistance);
+
+    // max rotation
+    const ratio = Math.min(1.4, tilRefreshRatio);
+
+    // adjust animation to start a little later so that it is in view when it starts
+    const progressRatio = ratio < 0.4 ? 0 : ratio - (1 - ratio);
+
+    indicator.set({ progressRatio });
+  };
+
+  const onPullCancel = () => {
+    setY(-totalHeight$1);
+  };
+
+  const onRefreshStart = () => {
+    indicator.set({ progressRatio: undefined });
+    setY(0);
+    spacer.setHeight(totalHeight$1);
+  };
+
+  const onRefreshEnd = () => {
+    setY(-totalHeight$1);
+    indicator.set({ progressRatio: 0 });
+    return transition(() => spacer.setHeight(0), 150, spacer.node)
+  };
+
+  container.node.appendChild(indicatorNode);
+  target.appendChild(container.node);
+
+  return {
+    node: container.node,
+    height: totalHeight$1,
+    distanceToRefresh: totalHeight$1,
+    elasticOverscroll: true,
+    onPullMove,
+    onPullCancel,
+    onRefreshStart,
+    onRefreshEnd
+  }
+};
+
+// https://docs.google.com/document/d/12Ay4s3NWake8Qd6xQeGiYimGJ_gCe0UMDZKwP9Ni4m8/edit#
+
+const disableChromePtr = ({ disablePullGlow = true } = {}) => {
+  let shouldDisablePtr, lastTouchY;
+
+  const touchstart = e => {
+    lastTouchY = 0;
+    shouldDisablePtr = window.pageYOffset === 0;
+  };
+
+  const touchmove = e => {
+    const touchY = e.touches[0].clientY;
+    const touchYDelta = touchY - lastTouchY;
+    lastTouchY = touchY;
+
+    if (shouldDisablePtr) {
+      shouldDisablePtr = false;
+
+      if (touchYDelta > 0) {
+        return e.preventDefault()
+      }
+    }
+
+    if (disablePullGlow && window.pageYOffset === 0 && touchYDelta > 0) {
+      return e.preventDefault()
+    }
+  };
+
+  document.addEventListener('touchstart', touchstart, { passive: true }),
+  document.addEventListener('touchmove', touchmove, { passive: false });
+
+  return () => {
+    document.removeEventListener('touchstart', touchstart);
+    document.removeEventListener('touchmove', touchmove);
+  }
+};
+
+var bowser = createCommonjsModule(function (module) {
+/*!
+ * Bowser - a browser detector
+ * https://github.com/ded/bowser
+ * MIT License | (c) Dustin Diaz 2015
+ */
+
+!function (root, name, definition) {
+  if ('object' != 'undefined' && module.exports) module.exports = definition();
+  else if (typeof undefined == 'function' && undefined.amd) undefined(name, definition);
+  else root[name] = definition();
+}(commonjsGlobal, 'bowser', function () {
+  /**
+    * See useragents.js for examples of navigator.userAgent
+    */
+
+  var t = true;
+
+  function detect(ua) {
+
+    function getFirstMatch(regex) {
+      var match = ua.match(regex);
+      return (match && match.length > 1 && match[1]) || '';
+    }
+
+    function getSecondMatch(regex) {
+      var match = ua.match(regex);
+      return (match && match.length > 1 && match[2]) || '';
+    }
+
+    var iosdevice = getFirstMatch(/(ipod|iphone|ipad)/i).toLowerCase()
+      , likeAndroid = /like android/i.test(ua)
+      , android = !likeAndroid && /android/i.test(ua)
+      , nexusMobile = /nexus\s*[0-6]\s*/i.test(ua)
+      , nexusTablet = !nexusMobile && /nexus\s*[0-9]+/i.test(ua)
+      , chromeos = /CrOS/.test(ua)
+      , silk = /silk/i.test(ua)
+      , sailfish = /sailfish/i.test(ua)
+      , tizen = /tizen/i.test(ua)
+      , webos = /(web|hpw)os/i.test(ua)
+      , windowsphone = /windows phone/i.test(ua)
+      , samsungBrowser = /SamsungBrowser/i.test(ua)
+      , windows = !windowsphone && /windows/i.test(ua)
+      , mac = !iosdevice && !silk && /macintosh/i.test(ua)
+      , linux = !android && !sailfish && !tizen && !webos && /linux/i.test(ua)
+      , edgeVersion = getFirstMatch(/edge\/(\d+(\.\d+)?)/i)
+      , versionIdentifier = getFirstMatch(/version\/(\d+(\.\d+)?)/i)
+      , tablet = /tablet/i.test(ua) && !/tablet pc/i.test(ua)
+      , mobile = !tablet && /[^-]mobi/i.test(ua)
+      , xbox = /xbox/i.test(ua)
+      , result;
+
+    if (/opera/i.test(ua)) {
+      //  an old Opera
+      result = {
+        name: 'Opera'
+      , opera: t
+      , version: versionIdentifier || getFirstMatch(/(?:opera|opr|opios)[\s\/](\d+(\.\d+)?)/i)
+      };
+    } else if (/opr|opios/i.test(ua)) {
+      // a new Opera
+      result = {
+        name: 'Opera'
+        , opera: t
+        , version: getFirstMatch(/(?:opr|opios)[\s\/](\d+(\.\d+)?)/i) || versionIdentifier
+      };
+    }
+    else if (/SamsungBrowser/i.test(ua)) {
+      result = {
+        name: 'Samsung Internet for Android'
+        , samsungBrowser: t
+        , version: versionIdentifier || getFirstMatch(/(?:SamsungBrowser)[\s\/](\d+(\.\d+)?)/i)
+      };
+    }
+    else if (/coast/i.test(ua)) {
+      result = {
+        name: 'Opera Coast'
+        , coast: t
+        , version: versionIdentifier || getFirstMatch(/(?:coast)[\s\/](\d+(\.\d+)?)/i)
+      };
+    }
+    else if (/yabrowser/i.test(ua)) {
+      result = {
+        name: 'Yandex Browser'
+      , yandexbrowser: t
+      , version: versionIdentifier || getFirstMatch(/(?:yabrowser)[\s\/](\d+(\.\d+)?)/i)
+      };
+    }
+    else if (/ucbrowser/i.test(ua)) {
+      result = {
+          name: 'UC Browser'
+        , ucbrowser: t
+        , version: getFirstMatch(/(?:ucbrowser)[\s\/](\d+(?:\.\d+)+)/i)
+      };
+    }
+    else if (/mxios/i.test(ua)) {
+      result = {
+        name: 'Maxthon'
+        , maxthon: t
+        , version: getFirstMatch(/(?:mxios)[\s\/](\d+(?:\.\d+)+)/i)
+      };
+    }
+    else if (/epiphany/i.test(ua)) {
+      result = {
+        name: 'Epiphany'
+        , epiphany: t
+        , version: getFirstMatch(/(?:epiphany)[\s\/](\d+(?:\.\d+)+)/i)
+      };
+    }
+    else if (/puffin/i.test(ua)) {
+      result = {
+        name: 'Puffin'
+        , puffin: t
+        , version: getFirstMatch(/(?:puffin)[\s\/](\d+(?:\.\d+)?)/i)
+      };
+    }
+    else if (/sleipnir/i.test(ua)) {
+      result = {
+        name: 'Sleipnir'
+        , sleipnir: t
+        , version: getFirstMatch(/(?:sleipnir)[\s\/](\d+(?:\.\d+)+)/i)
+      };
+    }
+    else if (/k-meleon/i.test(ua)) {
+      result = {
+        name: 'K-Meleon'
+        , kMeleon: t
+        , version: getFirstMatch(/(?:k-meleon)[\s\/](\d+(?:\.\d+)+)/i)
+      };
+    }
+    else if (windowsphone) {
+      result = {
+        name: 'Windows Phone'
+      , windowsphone: t
+      };
+      if (edgeVersion) {
+        result.msedge = t;
+        result.version = edgeVersion;
+      }
+      else {
+        result.msie = t;
+        result.version = getFirstMatch(/iemobile\/(\d+(\.\d+)?)/i);
+      }
+    }
+    else if (/msie|trident/i.test(ua)) {
+      result = {
+        name: 'Internet Explorer'
+      , msie: t
+      , version: getFirstMatch(/(?:msie |rv:)(\d+(\.\d+)?)/i)
+      };
+    } else if (chromeos) {
+      result = {
+        name: 'Chrome'
+      , chromeos: t
+      , chromeBook: t
+      , chrome: t
+      , version: getFirstMatch(/(?:chrome|crios|crmo)\/(\d+(\.\d+)?)/i)
+      };
+    } else if (/chrome.+? edge/i.test(ua)) {
+      result = {
+        name: 'Microsoft Edge'
+      , msedge: t
+      , version: edgeVersion
+      };
+    }
+    else if (/vivaldi/i.test(ua)) {
+      result = {
+        name: 'Vivaldi'
+        , vivaldi: t
+        , version: getFirstMatch(/vivaldi\/(\d+(\.\d+)?)/i) || versionIdentifier
+      };
+    }
+    else if (sailfish) {
+      result = {
+        name: 'Sailfish'
+      , sailfish: t
+      , version: getFirstMatch(/sailfish\s?browser\/(\d+(\.\d+)?)/i)
+      };
+    }
+    else if (/seamonkey\//i.test(ua)) {
+      result = {
+        name: 'SeaMonkey'
+      , seamonkey: t
+      , version: getFirstMatch(/seamonkey\/(\d+(\.\d+)?)/i)
+      };
+    }
+    else if (/firefox|iceweasel|fxios/i.test(ua)) {
+      result = {
+        name: 'Firefox'
+      , firefox: t
+      , version: getFirstMatch(/(?:firefox|iceweasel|fxios)[ \/](\d+(\.\d+)?)/i)
+      };
+      if (/\((mobile|tablet);[^\)]*rv:[\d\.]+\)/i.test(ua)) {
+        result.firefoxos = t;
+      }
+    }
+    else if (silk) {
+      result =  {
+        name: 'Amazon Silk'
+      , silk: t
+      , version : getFirstMatch(/silk\/(\d+(\.\d+)?)/i)
+      };
+    }
+    else if (/phantom/i.test(ua)) {
+      result = {
+        name: 'PhantomJS'
+      , phantom: t
+      , version: getFirstMatch(/phantomjs\/(\d+(\.\d+)?)/i)
+      };
+    }
+    else if (/slimerjs/i.test(ua)) {
+      result = {
+        name: 'SlimerJS'
+        , slimer: t
+        , version: getFirstMatch(/slimerjs\/(\d+(\.\d+)?)/i)
+      };
+    }
+    else if (/blackberry|\bbb\d+/i.test(ua) || /rim\stablet/i.test(ua)) {
+      result = {
+        name: 'BlackBerry'
+      , blackberry: t
+      , version: versionIdentifier || getFirstMatch(/blackberry[\d]+\/(\d+(\.\d+)?)/i)
+      };
+    }
+    else if (webos) {
+      result = {
+        name: 'WebOS'
+      , webos: t
+      , version: versionIdentifier || getFirstMatch(/w(?:eb)?osbrowser\/(\d+(\.\d+)?)/i)
+      };
+      /touchpad\//i.test(ua) && (result.touchpad = t);
+    }
+    else if (/bada/i.test(ua)) {
+      result = {
+        name: 'Bada'
+      , bada: t
+      , version: getFirstMatch(/dolfin\/(\d+(\.\d+)?)/i)
+      };
+    }
+    else if (tizen) {
+      result = {
+        name: 'Tizen'
+      , tizen: t
+      , version: getFirstMatch(/(?:tizen\s?)?browser\/(\d+(\.\d+)?)/i) || versionIdentifier
+      };
+    }
+    else if (/qupzilla/i.test(ua)) {
+      result = {
+        name: 'QupZilla'
+        , qupzilla: t
+        , version: getFirstMatch(/(?:qupzilla)[\s\/](\d+(?:\.\d+)+)/i) || versionIdentifier
+      };
+    }
+    else if (/chromium/i.test(ua)) {
+      result = {
+        name: 'Chromium'
+        , chromium: t
+        , version: getFirstMatch(/(?:chromium)[\s\/](\d+(?:\.\d+)?)/i) || versionIdentifier
+      };
+    }
+    else if (/chrome|crios|crmo/i.test(ua)) {
+      result = {
+        name: 'Chrome'
+        , chrome: t
+        , version: getFirstMatch(/(?:chrome|crios|crmo)\/(\d+(\.\d+)?)/i)
+      };
+    }
+    else if (android) {
+      result = {
+        name: 'Android'
+        , version: versionIdentifier
+      };
+    }
+    else if (/safari|applewebkit/i.test(ua)) {
+      result = {
+        name: 'Safari'
+      , safari: t
+      };
+      if (versionIdentifier) {
+        result.version = versionIdentifier;
+      }
+    }
+    else if (iosdevice) {
+      result = {
+        name : iosdevice == 'iphone' ? 'iPhone' : iosdevice == 'ipad' ? 'iPad' : 'iPod'
+      };
+      // WTF: version is not part of user agent in web apps
+      if (versionIdentifier) {
+        result.version = versionIdentifier;
+      }
+    }
+    else if(/googlebot/i.test(ua)) {
+      result = {
+        name: 'Googlebot'
+      , googlebot: t
+      , version: getFirstMatch(/googlebot\/(\d+(\.\d+))/i) || versionIdentifier
+      };
+    }
+    else {
+      result = {
+        name: getFirstMatch(/^(.*)\/(.*) /),
+        version: getSecondMatch(/^(.*)\/(.*) /)
+     };
+   }
+
+    // set webkit or gecko flag for browsers based on these engines
+    if (!result.msedge && /(apple)?webkit/i.test(ua)) {
+      if (/(apple)?webkit\/537\.36/i.test(ua)) {
+        result.name = result.name || "Blink";
+        result.blink = t;
+      } else {
+        result.name = result.name || "Webkit";
+        result.webkit = t;
+      }
+      if (!result.version && versionIdentifier) {
+        result.version = versionIdentifier;
+      }
+    } else if (!result.opera && /gecko\//i.test(ua)) {
+      result.name = result.name || "Gecko";
+      result.gecko = t;
+      result.version = result.version || getFirstMatch(/gecko\/(\d+(\.\d+)?)/i);
+    }
+
+    // set OS flags for platforms that have multiple browsers
+    if (!result.windowsphone && !result.msedge && (android || result.silk)) {
+      result.android = t;
+    } else if (!result.windowsphone && !result.msedge && iosdevice) {
+      result[iosdevice] = t;
+      result.ios = t;
+    } else if (mac) {
+      result.mac = t;
+    } else if (xbox) {
+      result.xbox = t;
+    } else if (windows) {
+      result.windows = t;
+    } else if (linux) {
+      result.linux = t;
+    }
+
+    function getWindowsVersion (s) {
+      switch (s) {
+        case 'NT': return 'NT'
+        case 'XP': return 'XP'
+        case 'NT 5.0': return '2000'
+        case 'NT 5.1': return 'XP'
+        case 'NT 5.2': return '2003'
+        case 'NT 6.0': return 'Vista'
+        case 'NT 6.1': return '7'
+        case 'NT 6.2': return '8'
+        case 'NT 6.3': return '8.1'
+        case 'NT 10.0': return '10'
+        default: return undefined
+      }
+    }
+    
+    // OS version extraction
+    var osVersion = '';
+    if (result.windows) {
+      osVersion = getWindowsVersion(getFirstMatch(/Windows ((NT|XP)( \d\d?.\d)?)/i));
+    } else if (result.windowsphone) {
+      osVersion = getFirstMatch(/windows phone (?:os)?\s?(\d+(\.\d+)*)/i);
+    } else if (result.mac) {
+      osVersion = getFirstMatch(/Mac OS X (\d+([_\.\s]\d+)*)/i);
+      osVersion = osVersion.replace(/[_\s]/g, '.');
+    } else if (iosdevice) {
+      osVersion = getFirstMatch(/os (\d+([_\s]\d+)*) like mac os x/i);
+      osVersion = osVersion.replace(/[_\s]/g, '.');
+    } else if (android) {
+      osVersion = getFirstMatch(/android[ \/-](\d+(\.\d+)*)/i);
+    } else if (result.webos) {
+      osVersion = getFirstMatch(/(?:web|hpw)os\/(\d+(\.\d+)*)/i);
+    } else if (result.blackberry) {
+      osVersion = getFirstMatch(/rim\stablet\sos\s(\d+(\.\d+)*)/i);
+    } else if (result.bada) {
+      osVersion = getFirstMatch(/bada\/(\d+(\.\d+)*)/i);
+    } else if (result.tizen) {
+      osVersion = getFirstMatch(/tizen[\/\s](\d+(\.\d+)*)/i);
+    }
+    if (osVersion) {
+      result.osversion = osVersion;
+    }
+
+    // device type extraction
+    var osMajorVersion = !result.windows && osVersion.split('.')[0];
+    if (
+         tablet
+      || nexusTablet
+      || iosdevice == 'ipad'
+      || (android && (osMajorVersion == 3 || (osMajorVersion >= 4 && !mobile)))
+      || result.silk
+    ) {
+      result.tablet = t;
+    } else if (
+         mobile
+      || iosdevice == 'iphone'
+      || iosdevice == 'ipod'
+      || android
+      || nexusMobile
+      || result.blackberry
+      || result.webos
+      || result.bada
+    ) {
+      result.mobile = t;
+    }
+
+    // Graded Browser Support
+    // http://developer.yahoo.com/yui/articles/gbs
+    if (result.msedge ||
+        (result.msie && result.version >= 10) ||
+        (result.yandexbrowser && result.version >= 15) ||
+		    (result.vivaldi && result.version >= 1.0) ||
+        (result.chrome && result.version >= 20) ||
+        (result.samsungBrowser && result.version >= 4) ||
+        (result.firefox && result.version >= 20.0) ||
+        (result.safari && result.version >= 6) ||
+        (result.opera && result.version >= 10.0) ||
+        (result.ios && result.osversion && result.osversion.split(".")[0] >= 6) ||
+        (result.blackberry && result.version >= 10.1)
+        || (result.chromium && result.version >= 20)
+        ) {
+      result.a = t;
+    }
+    else if ((result.msie && result.version < 10) ||
+        (result.chrome && result.version < 20) ||
+        (result.firefox && result.version < 20.0) ||
+        (result.safari && result.version < 6) ||
+        (result.opera && result.version < 10.0) ||
+        (result.ios && result.osversion && result.osversion.split(".")[0] < 6)
+        || (result.chromium && result.version < 20)
+        ) {
+      result.c = t;
+    } else result.x = t;
+
+    return result
+  }
+
+  var bowser = detect(typeof navigator !== 'undefined' ? navigator.userAgent || '' : '');
+
+  bowser.test = function (browserList) {
+    for (var i = 0; i < browserList.length; ++i) {
+      var browserItem = browserList[i];
+      if (typeof browserItem=== 'string') {
+        if (browserItem in bowser) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  /**
+   * Get version precisions count
+   *
+   * @example
+   *   getVersionPrecision("1.10.3") // 3
+   *
+   * @param  {string} version
+   * @return {number}
+   */
+  function getVersionPrecision(version) {
+    return version.split(".").length;
+  }
+
+  /**
+   * Array::map polyfill
+   *
+   * @param  {Array} arr
+   * @param  {Function} iterator
+   * @return {Array}
+   */
+  function map(arr, iterator) {
+    var result = [], i;
+    if (Array.prototype.map) {
+      return Array.prototype.map.call(arr, iterator);
+    }
+    for (i = 0; i < arr.length; i++) {
+      result.push(iterator(arr[i]));
+    }
+    return result;
+  }
+
+  /**
+   * Calculate browser version weight
+   *
+   * @example
+   *   compareVersions(['1.10.2.1',  '1.8.2.1.90'])    // 1
+   *   compareVersions(['1.010.2.1', '1.09.2.1.90']);  // 1
+   *   compareVersions(['1.10.2.1',  '1.10.2.1']);     // 0
+   *   compareVersions(['1.10.2.1',  '1.0800.2']);     // -1
+   *
+   * @param  {Array<String>} versions versions to compare
+   * @return {Number} comparison result
+   */
+  function compareVersions(versions) {
+    // 1) get common precision for both versions, for example for "10.0" and "9" it should be 2
+    var precision = Math.max(getVersionPrecision(versions[0]), getVersionPrecision(versions[1]));
+    var chunks = map(versions, function (version) {
+      var delta = precision - getVersionPrecision(version);
+
+      // 2) "9" -> "9.0" (for precision = 2)
+      version = version + new Array(delta + 1).join(".0");
+
+      // 3) "9.0" -> ["000000000"", "000000009"]
+      return map(version.split("."), function (chunk) {
+        return new Array(20 - chunk.length).join("0") + chunk;
+      }).reverse();
+    });
+
+    // iterate in reverse order by reversed chunks array
+    while (--precision >= 0) {
+      // 4) compare: "000000009" > "000000010" = false (but "9" > "10" = true)
+      if (chunks[0][precision] > chunks[1][precision]) {
+        return 1;
+      }
+      else if (chunks[0][precision] === chunks[1][precision]) {
+        if (precision === 0) {
+          // all version chunks are same
+          return 0;
+        }
+      }
+      else {
+        return -1;
+      }
+    }
+  }
+
+  /**
+   * Check if browser is unsupported
+   *
+   * @example
+   *   bowser.isUnsupportedBrowser({
+   *     msie: "10",
+   *     firefox: "23",
+   *     chrome: "29",
+   *     safari: "5.1",
+   *     opera: "16",
+   *     phantom: "534"
+   *   });
+   *
+   * @param  {Object}  minVersions map of minimal version to browser
+   * @param  {Boolean} [strictMode = false] flag to return false if browser wasn't found in map
+   * @param  {String}  [ua] user agent string
+   * @return {Boolean}
+   */
+  function isUnsupportedBrowser(minVersions, strictMode, ua) {
+    var _bowser = bowser;
+
+    // make strictMode param optional with ua param usage
+    if (typeof strictMode === 'string') {
+      ua = strictMode;
+      strictMode = void(0);
+    }
+
+    if (strictMode === void(0)) {
+      strictMode = false;
+    }
+    if (ua) {
+      _bowser = detect(ua);
+    }
+
+    var version = "" + _bowser.version;
+    for (var browser in minVersions) {
+      if (minVersions.hasOwnProperty(browser)) {
+        if (_bowser[browser]) {
+          if (typeof minVersions[browser] !== 'string') {
+            throw new Error('Browser version in the minVersion map should be a string: ' + browser + ': ' + String(minVersions));
+          }
+
+          // browser version and min supported version.
+          return compareVersions([version, minVersions[browser]]) < 0;
+        }
+      }
+    }
+
+    return strictMode; // not found
+  }
+
+  /**
+   * Check if browser is supported
+   *
+   * @param  {Object} minVersions map of minimal version to browser
+   * @param  {Boolean} [strictMode = false] flag to return false if browser wasn't found in map
+   * @param  {String}  [ua] user agent string
+   * @return {Boolean}
+   */
+  function check(minVersions, strictMode, ua) {
+    return !isUnsupportedBrowser(minVersions, strictMode, ua);
+  }
+
+  bowser.isUnsupportedBrowser = isUnsupportedBrowser;
+  bowser.compareVersions = compareVersions;
+  bowser.check = check;
+
+  /*
+   * Set our detect method to the main bowser object so we can
+   * reuse it to test other user agents.
+   * This is needed to implement future tests.
+   */
+  bowser._detect = detect;
+
+  return bowser
+});
 });
 
-// import Indicator from './indicator'
+var index$4 = createCommonjsModule(function (module) {
+'use strict';
+module.exports = (promise, onFinally) => {
+	onFinally = onFinally || (() => {});
+
+	return promise.then(
+		val => new Promise(resolve => {
+			resolve(onFinally());
+		}).then(() => val),
+		err => new Promise(resolve => {
+			resolve(onFinally());
+		}).then(() => {
+			throw err;
+		})
+	);
+};
+});
+
+var index$3 = createCommonjsModule(function (module) {
+'use strict';
+
+
+class TimeoutError extends Error {
+	constructor(message) {
+		super(message);
+		this.name = 'TimeoutError';
+	}
+}
+
+module.exports = (promise, ms, fallback) => new Promise((resolve, reject) => {
+	if (typeof ms !== 'number' && ms >= 0) {
+		throw new TypeError('Expected `ms` to be a positive number');
+	}
+
+	const timer = setTimeout(() => {
+		if (typeof fallback === 'function') {
+			resolve(fallback());
+			return;
+		}
+
+		const message = typeof fallback === 'string' ? fallback : `Promise timed out after ${ms} milliseconds`;
+		const err = fallback instanceof Error ? fallback : new TimeoutError(message);
+
+		reject(err);
+	}, ms);
+
+	index$4(
+		promise.then(resolve, reject),
+		() => {
+			clearTimeout(timer);
+		}
+	);
+});
+
+module.exports.TimeoutError = TimeoutError;
+});
+
+// TODO: a UI for changing the ptr parameters would be nice
+
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 const contentElem = document.createElement('div');
+contentElem.className = 'content';
 document.body.appendChild(contentElem);
 const contentUrl = 'https://baconipsum.com/api/?type=all-meat&paras=15&start-with-lorem=1&format=html';
-const refreshContent = () => fetch(contentUrl)
-  .then(resp => resp.text())
+
+const fetchHtml = fetch(contentUrl)
+  .then(resp => resp.text());
+
+const refreshContent = () => index$3(fetchHtml, 2000)
+  .catch(err => {
+    return `<p>The request to get nice filler content failed, so here's a random number: <b>${Math.random()}</b></p>
+
+<p>And here's the thing that happened with the request: <b>${err}</b></p>`
+  })
   .then(html => contentElem.innerHTML = html);
 
-refreshContent();
+const enableChromePtr = (bowser.mobile && bowser.chrome) ? disableChromePtr() : index;
 
-index$1({
+const ptr = pullToRefresh({
   element: document.body,
-  //indicator: Indicator(),
-  onRefresh: () => new Promise(resolve => setTimeout(resolve, 900))
-    .then(refreshContent)
+  indicator: (bowser.webkit ? Indicator$3 : Indicator)({ target: document.body }),
+  onRefresh: () => wait(900) // some artificial delay
+    .then(() => index$3(refreshContent(), 2000))
 });
+
+ptr.refresh();
 
 }());
