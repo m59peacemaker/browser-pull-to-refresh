@@ -4,7 +4,7 @@ Trying to be, but it is not yet: Android / Chrome / Material like pull to refres
 
 It works on mobile browsers. Desktop/mouse situations have a lot of annoying edge cases. There is code in this repo that deals with desktop, but it needs work to have a nice API that handles desktop considerations and yet is not ridiculous to configure for mobile also.
 
-[View the demo.](https://m59peacemaker.github.io/pull-to-refresh/)
+[View the demo.](https://m59peacemaker.github.io/browser-pull-to-refresh/)
 
 ## install
 
