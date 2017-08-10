@@ -99,6 +99,7 @@ const Indicator = ({ target, color = '#2196f3' }) => {
   }
 
   const onRefreshStart = () => {
+    visibleArea.setActive(true)
     indicator.set({ progressRatio: undefined })
     transition(() => setY(totalHeight + 15), 200, container.node)
   }
