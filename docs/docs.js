@@ -151,9 +151,10 @@ const ontouchpan = ({
   // aggressive: true means that the pull to refresh will start even if the page was scrolled down when the touch began, if the touchmove causes a scroll to the top and then begins overscroll
   // in code, simply skip the pageYOffset check
 const pullToRefresh$1 = ({
+  touchElement = document.body,
+  scrollElement = document.body,
   indicator,
-  onRefresh = () => Promise.resolve(),
-  element = document.body
+  onRefresh = () => Promise.resolve()
 }) => {
   const {
     distanceToRefresh = indicator.height || 60,
@@ -179,7 +180,7 @@ const pullToRefresh$1 = ({
   };
 
   const calcOverscrollAmount = e => {
-    return -(elasticOverscroll ? element.scrollTop : initialScrollTop - e.distanceY)
+    return -(elasticOverscroll ? scrollElement.scrollTop : initialScrollTop - e.distanceY)
   };
 
   const refresh = () => {
@@ -194,7 +195,7 @@ const pullToRefresh$1 = ({
     // I like the idea of having a threshold that needs to be crossed on the Y axis before X axis in order to be counted as a pull
     // though this is irrelevant in elasticOverscroll situations
   const end = ontouchpan({
-    element,
+    element: touchElement,
     passive: {
       touchstart: true,
       touchmove: elasticOverscroll
@@ -207,7 +208,7 @@ const pullToRefresh$1 = ({
       */
       canBePtr = elasticOverscroll || window.pageYOffset === 0;
       lastOverscroll = 0;
-      initialScrollTop = element.scrollTop;
+      initialScrollTop = scrollElement.scrollTop;
     },
     onpanmove: e => {
       const unrestrainedOverscrollDistance = calcOverscrollAmount(e);
@@ -221,7 +222,7 @@ const pullToRefresh$1 = ({
       }
 
       if (!pulling) {
-        onPullStart({ target: element });
+        onPullStart();
         pulling = true;
       }
 
@@ -267,7 +268,8 @@ const pullToRefresh$1 = ({
 
   return {
     end,
-    refresh
+    refresh,
+    indicator
   }
 };
 
@@ -2451,7 +2453,8 @@ const refreshContent = () => index$3(fetchHtml, 2000)
 const enableChromePtr = (bowser.mobile && bowser.chrome) ? disableChromePtr() : index;
 
 const ptr = pullToRefresh$1({
-  element: document.body,
+  touchElement: document.body,
+  scrollElememt: document.body,
   indicator: (bowser.webkit ? Indicator$3 : Indicator)({ target: document.body }),
   onRefresh: () => wait(900) // some artificial delay
     .then(() => index$3(refreshContent(), 2000))
