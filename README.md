@@ -22,7 +22,8 @@ import bowser from 'bowser'
 const enableChromePtr = (bowser.mobile && bowser.chrome) ? disableChromePtr() : () => {}
 
 const ptr = pullToRefresh({
-  element: document.body,
+  touchElement: document.body,
+  scrollElememt: document.body,
   indicator: (bowser.webkit ? ElasticIndicator : Indicator)({ target: document.body }),
   onRefresh: () => { return promiseFromSomeAsyncThing() }
 })

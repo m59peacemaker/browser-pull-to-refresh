@@ -27,7 +27,8 @@ const refreshContent = () => pTimeout(fetchHtml, 2000)
 const enableChromePtr = (bowser.mobile && bowser.chrome) ? disableChromePtr() : noop
 
 const ptr = pullToRefresh({
-  element: document.body,
+  touchElement: document.body,
+  scrollElememt: document.body,
   indicator: (bowser.webkit ? ElasticIndicator : Indicator)({ target: document.body }),
   onRefresh: () => wait(900) // some artificial delay
     .then(() => pTimeout(refreshContent(), 2000))

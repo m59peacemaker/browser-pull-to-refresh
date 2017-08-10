@@ -8,9 +8,10 @@ import ontouchpan from './lib/ontouchpan'
   // aggressive: true means that the pull to refresh will start even if the page was scrolled down when the touch began, if the touchmove causes a scroll to the top and then begins overscroll
   // in code, simply skip the pageYOffset check
 const pullToRefresh = ({
+  touchElement = document.body,
+  scrollElement = document.body,
   indicator,
-  onRefresh = () => Promise.resolve(),
-  element = document.body
+  onRefresh = () => Promise.resolve()
 }) => {
   const {
     distanceToRefresh = indicator.height || 60,
@@ -36,7 +37,7 @@ const pullToRefresh = ({
   }
 
   const calcOverscrollAmount = e => {
-    return -(elasticOverscroll ? element.scrollTop : initialScrollTop - e.distanceY)
+    return -(elasticOverscroll ? scrollElement.scrollTop : initialScrollTop - e.distanceY)
   }
 
   const refresh = () => {
@@ -51,7 +52,7 @@ const pullToRefresh = ({
     // I like the idea of having a threshold that needs to be crossed on the Y axis before X axis in order to be counted as a pull
     // though this is irrelevant in elasticOverscroll situations
   const end = ontouchpan({
-    element,
+    element: touchElement,
     passive: {
       touchstart: true,
       touchmove: elasticOverscroll
@@ -64,7 +65,7 @@ const pullToRefresh = ({
       */
       canBePtr = elasticOverscroll || window.pageYOffset === 0
       lastOverscroll = 0
-      initialScrollTop = element.scrollTop
+      initialScrollTop = scrollElement.scrollTop
     },
     onpanmove: e => {
       const unrestrainedOverscrollDistance = calcOverscrollAmount(e)
@@ -78,7 +79,7 @@ const pullToRefresh = ({
       }
 
       if (!pulling) {
-        onPullStart({ target: element })
+        onPullStart()
         pulling = true
       }
 
@@ -124,7 +125,8 @@ const pullToRefresh = ({
 
   return {
     end,
-    refresh
+    refresh,
+    indicator
   }
 }
 
