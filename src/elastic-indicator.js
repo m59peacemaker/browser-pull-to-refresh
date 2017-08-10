@@ -25,7 +25,7 @@ const Container = ({ indicator }) => {
   return { node, setY }
 }
 
-const Indicator = ({ target, color }) => {
+const Indicator = ({ target, color = '#2196f3' }) => {
   const spacer = Spacer({ ptrElement: target })
 
   const indicatorNode = document.createElement('div')

@@ -46,7 +46,7 @@ const Container = ({ indicator }) => {
   return { node, setY }
 }
 
-const Indicator = ({ target, color }) => {
+const Indicator = ({ target, color = '#2196f3' }) => {
   target.style.position = 'relative' // NOTE: ugly side-effect :/
 
   const indicatorNode = document.createElement('div')
