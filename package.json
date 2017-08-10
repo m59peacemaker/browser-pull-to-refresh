@@ -20,7 +20,7 @@
     "addeventlistener": "^1.0.0",
     "detect-passive-events": "^1.0.2",
     "nop": "^1.0.0",
-    "svelte-refresh-indicator": "0.0.4"
+    "svelte-refresh-indicator": "^0.1.0"
   },
   "devDependencies": {
     "bowser": "^1.7.1",

@@ -1,5 +1,5 @@
-import RefreshIndicator from 'svelte-refresh-indicator'
 import addEventListener from 'addeventlistener'
+import RefreshIndicator from 'svelte-refresh-indicator'
 import transition from './lib/transition'
 const clamp = (lower, higher, n) => Math.min(higher, Math.max(lower, n))
 
@@ -46,7 +46,7 @@ const Container = ({ indicator }) => {
   return { node, setY }
 }
 
-const Indicator = ({ target }) => {
+const Indicator = ({ target, color }) => {
   target.style.position = 'relative' // NOTE: ugly side-effect :/
 
   const indicatorNode = document.createElement('div')
@@ -56,6 +56,7 @@ const Indicator = ({ target }) => {
   const indicator = new RefreshIndicator({
     target: indicatorNode,
     data: {
+      color,
       size: refreshIndicatorHeight,
       emphasized: true
     }

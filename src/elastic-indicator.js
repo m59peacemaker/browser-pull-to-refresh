@@ -1,5 +1,5 @@
-import RefreshIndicator from 'svelte-refresh-indicator'
 import addEventListener from 'addeventlistener'
+import RefreshIndicator from 'svelte-refresh-indicator'
 import Spacer from './lib/spacer'
 import transition from './lib/transition'
 
@@ -8,7 +8,10 @@ const totalHeight = 48
 
 const Container = ({ indicator }) => {
   const node = document.createElement('div')
-  node.style.height = '100%' // webkit bugs without this. The element will often just not render.
+
+  // webkit bugs without this. The element will often just not render.
+  node.style.height = `${totalHeight}px`
+
   node.style.pointerEvents = 'none'
   node.style.display = 'flex'
   node.style.justifyContent = 'center'
@@ -22,7 +25,7 @@ const Container = ({ indicator }) => {
   return { node, setY }
 }
 
-const Indicator = ({ target }) => {
+const Indicator = ({ target, color }) => {
   const spacer = Spacer({ ptrElement: target })
 
   const indicatorNode = document.createElement('div')
@@ -31,6 +34,7 @@ const Indicator = ({ target }) => {
   const indicator = new RefreshIndicator({
     target: indicatorNode,
     data: {
+      color,
       size: refreshIndicatorHeight,
       emphasized: false
     }
