@@ -40,9 +40,11 @@ const pullToRefresh = ({
   }
 
   const refresh = () => {
+    busy = true
     onRefreshStart()
-    return onRefresh()
+    return Promise.resolve(onRefresh())
       .then(() => onRefreshEnd())
+      .then(() => busy = false)
   }
 
   // TODO: this doesn't filter out left/right motions
