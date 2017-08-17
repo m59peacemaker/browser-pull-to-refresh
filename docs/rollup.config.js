@@ -10,9 +10,9 @@ const Plugins = () => [
 
 export default [
   {
-    entry: 'src/index.cjs.js',
-    dest: 'build/index.cjs.js',
-    format: 'cjs',
+    entry: 'src/docs.js',
+    dest: 'build/docs.js',
+    format: 'iife',
     plugins: Plugins()
   }
 ]

@@ -3,9 +3,12 @@
   "version": "0.0.2",
   "description": "Pull to refresh for mobile web. Desktop support probably coming soon.",
   "main": "build/index.cjs.js",
-  "module": "index.js",
+  "module": "index.mjs",
   "scripts": {
-    "build": "rollup -c"
+    "build-docs": "(cd docs; npm run build)",
+    "build-main": "rollup -c",
+    "build": "npm run build-main && npm run build-docs",
+    "clean": "rm -r build docs/build"
   },
   "keywords": [
     "pull-to-refresh",
@@ -28,9 +31,6 @@
     "svelte-refresh-indicator": "^0.1.0"
   },
   "devDependencies": {
-    "bowser": "^1.7.1",
-    "disable-chrome-ptr": "^1.0.0",
-    "p-timeout": "^1.2.0",
     "rollup": "^0.45.2",
     "rollup-plugin-commonjs": "^8.1.0",
     "rollup-plugin-node-resolve": "^3.0.0"

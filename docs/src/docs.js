@@ -1,8 +1,8 @@
-import { pullToRefresh, Indicator, ElasticIndicator } from '../'
+import { pullToRefresh, Indicator, ElasticIndicator } from '../../'
 import disableChromePtr from 'disable-chrome-ptr'
 import bowser from 'bowser'
-import pTimeout from 'p-timeout'
 import noop from 'nop'
+import pTimeout from 'p-timeout'
 
 // TODO: a UI for changing the ptr parameters would be nice
 
