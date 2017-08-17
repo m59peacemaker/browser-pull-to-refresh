@@ -16,9 +16,11 @@ const ontouchpan = ({
 
   let firstTouch, lastMove, started
 
-  const findTouch = e => Array.prototype.slice.call(e.changedTouches)
-    .filter(touch => touch.identifier === firstTouch.identifier)
-    [0]
+  const findTouch = e => firstTouch
+    ? Array.prototype.slice.call(e.changedTouches)
+        .filter(touch => touch.identifier === firstTouch.identifier)
+        [0]
+    : undefined
 
   const decorateEvent = (e, touch) => {
     const distanceX = touch.clientX - firstTouch.clientX
