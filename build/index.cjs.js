@@ -1608,7 +1608,7 @@ const Indicator = ({ target, color = '#2196f3' }) => {
 
   visibleArea.node.appendChild(container.node);
   container.node.appendChild(indicatorNode);
-  target.append(visibleArea.node);
+  target.appendChild(visibleArea.node);
 
   return {
     node: visibleArea.node,

@@ -1608,7 +1608,7 @@ const Indicator = ({ target, color = '#2196f3' }) => {
 
   visibleArea.node.appendChild(container.node);
   container.node.appendChild(indicatorNode);
-  target.append(visibleArea.node);
+  target.appendChild(visibleArea.node);
 
   return {
     node: visibleArea.node,
@@ -1734,18 +1734,12 @@ const Indicator$3 = ({ target, color = '#2196f3' }) => {
   }
 };
 
-/*
-https://docs.google.com/document/d/12Ay4s3NWake8Qd6xQeGiYimGJ_gCe0UMDZKwP9Ni4m8
-*/
+// https://docs.google.com/document/d/12Ay4s3NWake8Qd6xQeGiYimGJ_gCe0UMDZKwP9Ni4m8/edit#
 
 const disableChromePtr = ({ disablePullGlow = true } = {}) => {
   let shouldDisablePtr, lastTouchY;
 
   const touchstart = e => {
-    if (e.touches.length !== 1) {
-      return
-    }
-
     lastTouchY = 0;
     shouldDisablePtr = window.pageYOffset === 0;
   };
@@ -2381,11 +2375,7 @@ var bowser = createCommonjsModule(function (module) {
 });
 });
 
-function nop$2(){}
-
-var index$3 = nop$2;
-
-var index$5 = createCommonjsModule(function (module) {
+var index$4 = createCommonjsModule(function (module) {
 'use strict';
 module.exports = (promise, onFinally) => {
 	onFinally = onFinally || (() => {});
@@ -2403,7 +2393,7 @@ module.exports = (promise, onFinally) => {
 };
 });
 
-var index$4 = createCommonjsModule(function (module) {
+var index$3 = createCommonjsModule(function (module) {
 'use strict';
 
 
@@ -2431,7 +2421,7 @@ module.exports = (promise, ms, fallback) => new Promise((resolve, reject) => {
 		reject(err);
 	}, ms);
 
-	index$5(
+	index$4(
 		promise.then(resolve, reject),
 		() => {
 			clearTimeout(timer);
@@ -2454,7 +2444,7 @@ const contentUrl = 'https://baconipsum.com/api/?type=all-meat&paras=15&start-wit
 const fetchHtml = fetch(contentUrl)
   .then(resp => resp.text());
 
-const refreshContent = () => index$4(fetchHtml, 2000)
+const refreshContent = () => index$3(fetchHtml, 2000)
   .catch(err => {
     return `<p>The request to get nice filler content failed, so here's a random number: <b>${Math.random()}</b></p>
 
@@ -2462,14 +2452,14 @@ const refreshContent = () => index$4(fetchHtml, 2000)
   })
   .then(html => contentElem.innerHTML = html);
 
-const enableChromePtr = (bowser.mobile && bowser.chrome) ? disableChromePtr() : index$3;
+const enableChromePtr = (bowser.mobile && bowser.chrome) ? disableChromePtr() : index;
 
 const ptr = pullToRefresh$1({
   touchElement: document.body,
   scrollElememt: document.body,
   indicator: (bowser.webkit ? Indicator$3 : Indicator)({ target: document.body }),
   onRefresh: () => wait(900) // some artificial delay
-    .then(() => index$4(refreshContent(), 2000))
+    .then(() => index$3(refreshContent(), 2000))
 });
 
 ptr.refresh();
